@@ -14,7 +14,7 @@ describe('flows functionality', function() {
   after(() => {
     helper.scopeHelper.destroy();
   });
-  describe.skip('running build task', () => {
+  describe('running build task', () => {
     let taskOutput;
     before(() => {
       helper.scopeHelper.initWorkspace();
@@ -63,7 +63,7 @@ describe('flows functionality', function() {
     });
     // @todo: improve!
     it('should do something useful', () => {
-      expect(taskOutput).to.have.string('result');
+      expect(taskOutput).to.have.string('Hello Report!');
     });
   });
 });

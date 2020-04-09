@@ -1,4 +1,5 @@
 import path from 'path';
+import { Harmony } from '@teambit/harmony';
 import { Workspace } from '../workspace';
 import ConsumerComponent from '../../consumer/component';
 import { BitId } from '../../bit-id';
@@ -10,6 +11,7 @@ import DataToPersist from '../../consumer/component/sources/data-to-persist';
 import { Scope } from '../scope';
 import { Flows } from '../flows';
 import { IdsAndFlows } from '../flows/flows';
+import GeneralError from '../../error/general-error';
 
 export type ComponentAndCapsule = {
   consumerComponent: ConsumerComponent;
@@ -20,7 +22,7 @@ export type ComponentAndCapsule = {
 type buildHookResult = { id: BitId; dists?: Array<{ path: string; content: string }> };
 
 export class Compile {
-  constructor(private workspace: Workspace, private flows: Flows, private scope: Scope) {
+  constructor(private workspace: Workspace, private flows: Flows, private scope: Scope, private harmony: Harmony) {
     const func = this.compileDuringBuild.bind(this);
     if (this.scope?.onBuild) this.scope.onBuild.push(func);
   }
@@ -80,15 +82,43 @@ result.value [
   // @todo: what is the return type here?
   async compile(componentsIds: string[]) {
     const componentAndCapsules = await getComponentsAndCapsules(componentsIds, this.workspace);
-    const idsAndScriptsArr = componentAndCapsules
+    const idsAndTasksArr = componentAndCapsules
       .map(c => {
         const compileConfig = c.component.config.extensions.findCoreExtension('compile')?.config;
-        const compiler = compileConfig ? [compileConfig.compiler] : [];
-        return { id: c.consumerComponent.id, value: compiler };
+        // const compiler = compileConfig ? [compileConfig.compiler] : [];
+        const taskName = this.getTaskNameFromCompiler(compileConfig);
+        const value = taskName ? [taskName] : [];
+        return { id: c.consumerComponent.id, value };
       })
       .filter(i => i.value);
-    const idsAndFlows = new IdsAndFlows(...idsAndScriptsArr);
-    return this.flows.runMultiple(idsAndFlows, { traverse: 'only' });
+    const idsAndFlows = new IdsAndFlows(...idsAndTasksArr);
+
+    const result = await this.flows.runMultiple(idsAndFlows, { traverse: 'only' });
+    return result;
+  }
+
+  getTaskNameFromCompiler(compileConfig): string | null {
+    if (!compileConfig || !compileConfig.compiler) return null;
+    const compiler = compileConfig.compiler as string;
+    const compilerExtension = this.harmony.get(compiler);
+    if (!compilerExtension)
+      throw new Error(`failed to get "${compiler}" extension from Harmony.
+the following extensions are available: ${this.harmony.extensionsIds.join(', ')}`);
+    const compilerInstance = compilerExtension.instance as any;
+    if (!compilerInstance) {
+      throw new GeneralError(`failed to get the instance of the compiler "${compiler}".
+please make sure the compiler provider returns anything`);
+    }
+    const defineCompiler = compilerInstance.defineCompiler;
+    if (!defineCompiler || typeof defineCompiler !== 'function') {
+      throw new GeneralError(`the compiler "${compiler}" instance doesn't have "defineCompiler" function`);
+    }
+    const compilerDefinition = defineCompiler();
+    const taskFile = compilerDefinition.taskFile;
+    if (!taskFile) {
+      throw new GeneralError(`the "defineCompiler" function of "${compiler}" doesn't return taskFile definition`);
+    }
+    return taskFile;
   }
 
   async legacyCompile(componentsIds: string[], params: { verbose: boolean; noCache: boolean }) {

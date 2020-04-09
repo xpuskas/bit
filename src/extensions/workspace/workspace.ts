@@ -273,7 +273,7 @@ export default class Workspace implements ComponentHost {
       try {
         // eslint-disable-next-line global-require, import/no-dynamic-require
         const mod = require(extPath);
-        mod.name = id.toString();
+        mod.name = id.toStringWithoutVersion();
         return mod;
       } catch (e) {
         const warning = UNABLE_TO_LOAD_EXTENSION(id.toString());

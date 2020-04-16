@@ -120,9 +120,12 @@ export type ComponentProps = {
 };
 
 export default class Component {
-  static addConfigRegistry: { [extId: string]: Function } = {};
+  // Just a proxy to the component config so extension won't need to access the old config directly
   static registerAddConfigAction(extId, func: () => any) {
-    this.addConfigRegistry[extId] = func;
+    ComponentConfig.registerAddConfigAction(extId, func);
+  }
+  static registerOnComponentConfigLoading(extId, func: (id, config) => any) {
+    ComponentConfig.registerOnComponentConfigLoading(extId, func);
   }
 
   name: string;
@@ -476,12 +479,20 @@ export default class Component {
   }
 
   getAllDependenciesIds(): BitIds {
-    const allDependencies = this.getAllDependencies();
-    return BitIds.fromArray(allDependencies.map(dependency => dependency.id));
+    const allDependencies = R.flatten(Object.values(this.depsIdsGroupedByType));
+    return BitIds.fromArray(allDependencies);
+  }
+
+  get depsIdsGroupedByType(): { dependencies: BitIds; devDependencies: BitIds; extensionDependencies: BitIds } {
+    return {
+      dependencies: this.dependencies.getAllIds(),
+      devDependencies: this.devDependencies.getAllIds(),
+      extensionDependencies: this.extensions.extensionsBitIds
+    };
   }
 
   hasDependencies(): boolean {
-    const allDependencies = this.getAllDependencies();
+    const allDependencies = this.getAllDependenciesIds();
     return Boolean(allDependencies.length);
   }
 
@@ -972,12 +983,14 @@ export default class Component {
     const devDependencies = await getDependenciesComponents(getFlatten('flattenedDevDependencies'));
     const compilerDependencies = await getDependenciesComponents(getFlatten('flattenedCompilerDependencies'));
     const testerDependencies = await getDependenciesComponents(getFlatten('flattenedTesterDependencies'));
+    const extensionDependencies = await getDependenciesComponents(this.extensions.extensionsBitIds);
     return new ComponentWithDependencies({
       component: this,
       dependencies,
       devDependencies,
       compilerDependencies,
-      testerDependencies
+      testerDependencies,
+      extensionDependencies
     });
   }
 
@@ -1174,17 +1187,17 @@ export default class Component {
       componentId: id,
       componentDir,
       workspaceDir: consumerPath,
-      workspaceConfig,
-      addConfigRegistry: this.addConfigRegistry
+      workspaceConfig
     });
 
-    const extensions: ExtensionDataList = componentConfig.extensions;
-    const extensionsAddedConfig = componentConfig.extensionsAddedConfig;
     // by default, imported components are not written with bit.json file.
     // use the component from the model to get their bit.json values
     if (componentFromModel) {
       componentConfig.mergeWithComponentData(componentFromModel);
     }
+
+    const extensions: ExtensionDataList = componentConfig.extensions;
+    const extensionsAddedConfig = componentConfig.extensionsAddedConfig;
 
     const envsContext = {
       componentDir: bitDir,

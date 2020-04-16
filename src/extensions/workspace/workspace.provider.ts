@@ -6,7 +6,7 @@ import { loadConsumerIfExist } from '../../consumer';
 import { Isolator } from '../isolator';
 import { Reporter } from '../reporter';
 import { WorkspaceConfig } from '../workspace-config';
-import ComponentConfig from '../../consumer/config/component-config';
+import ConsumerComponent from '../../consumer/component';
 
 export type WorkspaceDeps = [WorkspaceConfig, Scope, ComponentFactory, Isolator, Reporter];
 
@@ -43,13 +43,12 @@ export default async function provideWorkspace(
         scope,
         component,
         isolator,
-        reporter,
         reporter.createLogger('workspace'), // TODO: get the 'worksacpe' name in a better way
         undefined,
         harmony
       );
-      ComponentConfig.registerOnComponentConfigLoading('workspace', async (id, componentConfig) => {
-        const extensionsConfig = componentConfig.extensions.toExtensionConfigList();
+      ConsumerComponent.registerOnComponentConfigLoading('workspace', async (id, componentConfig) => {
+        const extensionsConfig = componentConfig.allExtensions().toExtensionConfigList();
         const res = await workspace.loadExtensionsByConfig(extensionsConfig);
         return res;
       });

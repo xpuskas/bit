@@ -1,5 +1,5 @@
 import { omit } from 'ramda';
-import LegacyWorkspaceConfig from 'bit-bin/consumer/config/workspace-config';
+import { LegacyWorkspaceConfig, ILegacyWorkspaceSettings } from 'bit-bin/consumer/config';
 import GeneralError from 'bit-bin/error/general-error';
 import { ExtensionConfigList, ExtensionConfigEntry } from 'bit-bin/consumer/config/extension-config-list';
 import { ResolveModulesConfig } from 'bit-bin/consumer/component/dependencies/files-dependency-builder/types/dependency-tree-type';
@@ -54,7 +54,7 @@ export type WorkspaceSettingsLegacyProps = {
 
 export type WorkspaceSettingsProps = WorkspaceSettingsNewProps & WorkspaceSettingsLegacyProps;
 
-export class WorkspaceSettings {
+export class WorkspaceSettings implements ILegacyWorkspaceSettings {
   constructor(private data: WorkspaceSettingsProps) {}
 
   get componentsDefaultDirectory() {

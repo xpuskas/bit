@@ -76,7 +76,7 @@ function getCompatibilityStatus() {
 // }
 
 function loadCli() {
-  return require('bit-bin/app.js');
+  return require('../app.js');
 }
 
 function promptAnalyticsIfNeeded(cb) {

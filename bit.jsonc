@@ -4,7 +4,7 @@
     // this is a workaround to let "bit link --rewire" generate modules "@bit/bit.core.ext-name"
     // and not "@bit/core.ext-name". once staging support the new owner feature, it can be changed
     // back to "bit.core".
-    "defaultScope": "bit.bit.core",
+    "defaultScope": "bit.core",
     "workspace": {},
     "dependencyResolver": {}
   },
@@ -54,8 +54,7 @@
     },
     // override typescript to not get compiled
     "typescript": {
-      "extensions": {
-      }
+      "extensions": {}
     }
   }
 }

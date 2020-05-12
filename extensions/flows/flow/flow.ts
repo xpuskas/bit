@@ -2,7 +2,7 @@
 /* eslint-disable no-plusplus */
 /* eslint-disable max-len */
 import { Subject, ReplaySubject } from 'rxjs';
-import { Task } from '../task';
+import { executeTask } from '../task';
 import { Capsule } from '@bit/bit.core.isolator';
 import logger from 'bit-bin/logger/logger';
 
@@ -38,7 +38,7 @@ export class Flow {
     const id = capsule.component.id.toString();
     logger.debug(`flowsExt, flow.execSequence of ${id}. index: ${index}`);
     const that = this;
-    const task = Task.execute(this.tasks[index], capsule);
+    const task = executeTask(this.tasks[index], capsule);
     subject.next(task);
     task.subscribe({
       next(data) {

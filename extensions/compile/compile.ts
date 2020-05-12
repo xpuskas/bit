@@ -57,8 +57,11 @@ export class Compile {
     const idsAndFlows = new IdsAndFlows();
     const componentsWithLegacyCompilers: ComponentAndCapsule[] = [];
     componentsAndCapsules.forEach(c => {
-      const compileCoreConfig = c.component.config.extensions.findCoreExtension('compile')?.config;
-      const compileConfig = compileCoreConfig || c.component.config.extensions.findExtension('compile')?.config;
+      const compileCore = c.component.config.extensions.findCoreExtension('compile');
+      const compileComponent = c.component.config.extensions.findExtension('compile');
+      const compileComponentExported = c.component.config.extensions.findExtension('bit.core/compile');
+      const compileExtension = compileCore || compileComponent || compileComponentExported;
+      const compileConfig = compileExtension?.config;
       const compiler = compileConfig ? [compileConfig.compiler] : [];
       if (compileConfig) {
         idsAndFlows.push({ id: c.consumerComponent.id, value: compiler });

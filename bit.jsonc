@@ -17,7 +17,7 @@
     "*": {
       "extensions": {
         "typescript": {},
-        "compile": {
+        "bit.core/compile": {
           "compiler": "@bit/bit.core.typescript:transpile"
         }
       },
@@ -29,7 +29,7 @@
     "cli": {
       "extensions": {
         "typescript": {},
-        "compile": {
+        "bit.core/compile": {
           "compiler": "@bit/bit.core.typescript:transpile"
         }
       },
@@ -44,7 +44,7 @@
       // but keep the same "extensions" as other components in the general "*"
       "extensions": {
         "typescript": {},
-        "compile": {
+        "bit.core/compile": {
           "compiler": "@bit/bit.core.typescript:transpile"
         }
       },

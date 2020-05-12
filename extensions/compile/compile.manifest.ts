@@ -6,7 +6,7 @@ import { provideCompile } from './compile.provider';
 import { ScopeExt } from '@bit/bit.core.scope';
 
 export default {
-  name: 'compile',
+  name: 'bit.core/compile',
   dependencies: [BitCliExt, WorkspaceExt, FlowsExt, ScopeExt],
   provider: provideCompile
 } as ExtensionManifest;

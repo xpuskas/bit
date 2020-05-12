@@ -18,6 +18,7 @@ import PackageJsonFile from 'bit-bin/consumer/component/package-json-file';
 import componentIdToPackageName from 'bit-bin/utils/bit/component-id-to-package-name';
 import { symlinkDependenciesToCapsules } from './symlink-dependencies-to-capsules';
 import logger from 'bit-bin/logger/logger';
+import { DEPENDENCIES_FIELDS } from 'bit-bin/constants';
 
 const CAPSULES_BASE_DIR = path.join(CACHE_ROOT, 'capsules'); // TODO: move elsewhere
 
@@ -92,10 +93,7 @@ export default class Isolator {
     if (config.installPackages) {
       const capsulesToInstall: Capsule[] = capsulesWithPackagesData
         .filter(capsuleWithPackageData => {
-          const packageJsonHasChanged = !equals(
-            capsuleWithPackageData.previousPackageJson,
-            capsuleWithPackageData.currentPackageJson
-          );
+          const packageJsonHasChanged = wereDependenciesInPackageJsonChanged(capsuleWithPackageData);
           return packageJsonHasChanged;
         })
         .map(capsuleWithPackageData => capsuleWithPackageData.capsule);
@@ -141,6 +139,12 @@ type CapsulePackageJsonData = {
   currentPackageJson: Record<string, any>;
   previousPackageJson: Record<string, any> | null;
 };
+
+function wereDependenciesInPackageJsonChanged(capsuleWithPackageData: CapsulePackageJsonData): boolean {
+  const { previousPackageJson, currentPackageJson } = capsuleWithPackageData;
+  if (!previousPackageJson) return true;
+  return DEPENDENCIES_FIELDS.some(field => !equals(previousPackageJson[field], currentPackageJson[field]));
+}
 
 async function getCapsulesPackageJsonData(capsules: Capsule[]): Promise<CapsulePackageJsonData[]> {
   return Promise.all(

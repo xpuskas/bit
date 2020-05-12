@@ -52,9 +52,9 @@
     "cli": {
         "files": [
             {
-                "relativePath": "app.js",
+                "relativePath": "bin/bit.js",
                 "test": false,
-                "name": "app.js"
+                "name": "bit.js"
             },
             {
                 "relativePath": "cli.extension.ts",

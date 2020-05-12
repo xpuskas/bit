@@ -33,7 +33,7 @@
           "compiler": "@bit/bit.core.typescript:transpile"
         }
       },
-      "bin": "app.js",
+      "bin": "bin/bit.js",
       // why this is needed? try to automate this
       "devDependencies": {
         "@types/node": "^12.12.25"

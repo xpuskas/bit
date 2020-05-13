@@ -94,6 +94,8 @@ export default class Isolator {
       const capsulesToInstall: Capsule[] = capsulesWithPackagesData
         .filter(capsuleWithPackageData => {
           const packageJsonHasChanged = wereDependenciesInPackageJsonChanged(capsuleWithPackageData);
+          // @todo: when a component is tagged, it changes all package-json of its dependents, but it
+          // should not trigger any "npm install" because they dependencies are symlinked by us
           return packageJsonHasChanged;
         })
         .map(capsuleWithPackageData => capsuleWithPackageData.capsule);

@@ -49,8 +49,19 @@ chai.use(require('chai-fs'));
         expect(path.join(helpCapsule, 'dist/help.js')).to.be.a.file();
       });
     });
+    describe.only('compile when the compiler throws an error', () => {
+      before(() => {
+        const transpilePath = 'extensions/gulp-ts/transpile.js';
+        helper.fs.outputFile(transpilePath, 'throw new Error("please catch me!")');
+      });
+      it('should show the error', () => {
+        const output = helper.general.runWithTryCatch('bit compile');
+        expect(output).to.have.string('please catch me!');
+      });
+    });
     describe('tag the component', () => {
       before(() => {
+        helper.scopeHelper.getClonedLocalScope(scopeBeforeTag);
         helper.command.tagComponent('help');
       });
       it('should save the dists in the objects', () => {

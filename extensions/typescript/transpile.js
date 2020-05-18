@@ -1,8 +1,14 @@
+/* eslint-disable no-console */
+/**
+ * work-in-progress typescript compiler.
+ * once Flows is able to show errors, remove the console.logs
+ */
+
+require('typescript');
 const fs = require('fs');
 const path = require('path');
 const childProcess = require('child_process');
 const tsconfig = require('./tsconfig.default.json');
-const typescript = require('typescript');
 
 console.log(process.cwd());
 function transpile() {
@@ -10,7 +16,7 @@ function transpile() {
   let results;
   try {
     // @todo: make sure this is working on Windows
-    result = childProcess.execSync(path.join(__dirname, 'node_modules/.bin/tsc'));
+    results = childProcess.execSync(path.join(__dirname, 'node_modules/.bin/tsc'));
   } catch (err) {
     console.log('transpile -> err', err);
     console.log('transpile -> stdout', err.stdout ? err.stdout.toString() : '');

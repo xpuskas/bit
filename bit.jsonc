@@ -18,7 +18,7 @@
       "extensions": {
         "typescript": {},
         "bit.core/compile": {
-          "compiler": "@bit/bit.core.typescript:transpile"
+          "compiler": "@bit/bit.core.typescript"
         }
       },
       // why this is needed? try to automate this
@@ -30,7 +30,7 @@
       "extensions": {
         "typescript": {},
         "bit.core/compile": {
-          "compiler": "@bit/bit.core.typescript:transpile"
+          "compiler": "@bit/bit.core.typescript"
         }
       },
       "bin": "bin/bit.js",
@@ -45,7 +45,7 @@
       "extensions": {
         "typescript": {},
         "bit.core/compile": {
-          "compiler": "@bit/bit.core.typescript:transpile"
+          "compiler": "@bit/bit.core.typescript"
         }
       },
       "devDependencies": {

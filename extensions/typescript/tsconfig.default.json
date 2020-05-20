@@ -18,5 +18,8 @@
     "removeComments": true,
     "preserveConstEnums": true,
     "resolveJsonModule": true
-  }
+  },
+  "exclude": [
+    "dist"
+  ]
 }

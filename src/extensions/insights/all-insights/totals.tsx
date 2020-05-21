@@ -3,13 +3,12 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import { Insight, InsightResult, RawResult } from '../insight';
 import { GraphBuilder } from '../../graph';
-import NoDataForInsight from '../exceptions/no-data-for-insight';
 
-export const INSIGHT_NAME = 'cyclic dependencies';
+export const INSIGHT_NAME = 'totals';
 
-export default class FindCycles implements Insight {
+export default class Totals implements Insight {
   name = INSIGHT_NAME;
-  description = 'Get all cyclic dependencies in component graph';
+  description = 'totals in the graph';
   graphBuilder: GraphBuilder;
   constructor(graphBuilder: GraphBuilder) {
     this.graphBuilder = graphBuilder;
@@ -22,16 +21,9 @@ export default class FindCycles implements Insight {
         data: undefined
       };
     }
-    const cycles = graph.findCycles();
-    if (cycles.length === 1) {
-      return {
-        message: `Found ${cycles.length} cycle.`,
-        data: cycles
-      };
-    }
     return {
-      message: `Found ${cycles.length} cycles.`,
-      data: cycles
+      message: '',
+      data: graph.totals()
     };
   }
 
@@ -39,16 +31,16 @@ export default class FindCycles implements Insight {
     if (data.data.length === 0) {
       return (
         <div>
-          <Text>No cyclic dependencies</Text>
+          <Text>Could not get totals</Text>
         </div>
       );
     }
     return (
       <div>
-        <div key="data">
-          <div>{data.message}</div>
-          <div>{data.data}</div>
-        </div>
+        <Text>{'\n'}</Text>
+        <Text>`Total components: ${data.data.components}</Text>
+        <Text>`Total dependencies: ${data.data.dependencies}</Text>
+        <Text>`Total dependents: ${data.data.dependents}</Text>
       </div>
     );
   }

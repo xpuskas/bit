@@ -41,6 +41,17 @@ export class ComponentGraph extends Graph<Component, Dependency> {
     return this.buildFromLegacy(initialGraph, componentFactory);
   }
 
+  totals(): { components: number; dependencies: number; dependents: number } {
+    const components = this.nodeCount();
+    const dependencies = this.dependencies();
+    const dependents = this.dependents();
+    return {
+      components,
+      dependencies,
+      dependents
+    };
+  }
+
   findDuplicateDependencies(): Map<string, DuplicateDependency> {
     const duplicateDependencies: Map<string, DuplicateDependency> = new Map();
     for (const [compFullName, versions] of this.versionMap) {

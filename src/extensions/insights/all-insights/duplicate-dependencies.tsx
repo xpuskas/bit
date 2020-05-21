@@ -4,7 +4,6 @@ import { Color, Box, Text, render } from 'ink';
 import { Insight, InsightResult, RawResult } from '../insight';
 import { GraphBuilder } from '../../graph';
 import { VersionSubgraph } from '../../graph/duplicate-dependency';
-import NoDataForInsight from '../exceptions/no-data-for-insight';
 
 export const INSIGHT_NAME = 'duplicate dependencies';
 

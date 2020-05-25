@@ -1,3 +1,4 @@
+import fs from 'fs-extra';
 import { Harmony } from '@teambit/harmony';
 import path from 'path';
 import pMapSeries from 'p-map-series';
@@ -17,6 +18,7 @@ import { Dist } from '../../consumer/component/sources';
 import GeneralError from '../../error/general-error';
 import { packageNameToComponentId } from '../../utils/bit/package-name-to-component-id';
 import { ExtensionDataList } from '../../consumer/config/extension-data';
+import { pathJoinLinux } from '../../utils';
 
 type BuildResult = { component: string; buildResults: string[] | null | undefined };
 
@@ -87,18 +89,18 @@ export class Compile {
     });
     let newCompilersResult: BuildResult[] = [];
     let oldCompilersResult: BuildResult[] = [];
-    if (idsAndFlows.length) {
-      newCompilersResult = await this.compileWithNewCompilers(
-        idsAndFlows,
-        componentsAndCapsules.map(c => c.consumerComponent)
-      );
-    }
     if (componentsWithLegacyCompilers.length) {
       oldCompilersResult = await this.compileWithLegacyCompilers(
         componentsWithLegacyCompilers,
         noCache,
         verbose,
         dontPrintEnvMsg
+      );
+    }
+    if (idsAndFlows.length) {
+      newCompilersResult = await this.compileWithNewCompilers(
+        idsAndFlows,
+        componentsAndCapsules.map(c => c.consumerComponent)
       );
     }
 
@@ -244,9 +246,9 @@ please make sure the compiler provider returns anything`);
 
     const components = componentsAndCapsules.map(c => c.consumerComponent);
     logger.debugAndAddBreadCrumb('scope.buildMultiple', 'using the legacy build mechanism');
-    const build = async (component: ConsumerComponent) => {
+    const build = async (componentAndCapsule: ComponentAndCapsule) => {
+      const component = componentAndCapsule.consumerComponent;
       if (component.compiler) loader.start(`building component - ${component.id}`);
-      //
       await component.build({
         scope: this.workspace.consumer.scope,
         consumer: this.workspace.consumer,
@@ -256,12 +258,22 @@ please make sure the compiler provider returns anything`);
       });
       const buildResults = await component.dists.writeDists(component, this.workspace.consumer, false);
       if (component.compiler) loader.succeed();
+      if (!component.compiler) {
+        fs.ensureDirSync(path.join(componentAndCapsule.capsule.wrkDir, 'dist'));
+        component.files.forEach(file =>
+          componentAndCapsule.capsule.fs.writeFileSync(path.join('dist', file.relative), file.contents)
+        );
+        const packageJson = componentAndCapsule.capsule.fs.readFileSync('package.json').toString();
+        const packageJsonParsed = JSON.parse(packageJson);
+        packageJsonParsed.main = pathJoinLinux('dist', component.mainFile);
+        componentAndCapsule.capsule.fs.writeFileSync('package.json', JSON.stringify(packageJsonParsed, null, 4));
+      }
       return { component: component.id.toString(), buildResults };
     };
     const writeLinks = async (component: ConsumerComponent) =>
       component.dists.writeDistsLinks(component, this.workspace.consumer);
 
-    const buildResults = await pMapSeries(components, build);
+    const buildResults = await pMapSeries(componentsAndCapsules, build);
     await pMapSeries(components, writeLinks);
 
     return buildResults;
@@ -296,6 +308,7 @@ please make sure the compiler provider returns anything`);
   public async aggregateWatchersByCompiler(): Promise<AggregatedWatcher[]> {
     const componentsAndCapsules = await getComponentsAndCapsules([], this.workspace);
     logger.debug(`compilerExt.getWatchProcesses, completed created of capsules`);
+    // await this.compile(componentsAndCapsules.map(c => c.consumerComponent.id.toString()), false);
     const watchers: AggregatedWatcher[] = [];
     componentsAndCapsules.forEach(c => {
       const extensions = c.component.config.extensions;

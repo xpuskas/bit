@@ -9,6 +9,14 @@ import FsContainer, { BitExecOption } from './container';
 import { Component } from '../../component';
 import ContainerExec from './container-exec';
 
+export type CapsuleConfig = {
+  installPackages?: boolean;
+  packageManager?: string;
+  alwaysNew?: boolean;
+  name?: string;
+  workspaceDir?: string;
+};
+
 export default class Capsule extends CapsuleTemplate<Exec, NodeFS> {
   private _wrkDir: string;
   constructor(
@@ -70,7 +78,7 @@ export default class Capsule extends CapsuleTemplate<Exec, NodeFS> {
     return this.container.symlink(src, dest);
   }
 
-  static async createFromComponent(component: Component, baseDir: string, opts?: {}): Promise<Capsule> {
+  static async createFromComponent(component: Component, baseDir: string, opts?: CapsuleConfig): Promise<Capsule> {
     // TODO: make this a static method and combine with ComponentCapsule
     const config = Object.assign(
       {

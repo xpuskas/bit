@@ -2,12 +2,13 @@ import path from 'path';
 import hash from 'object-hash';
 import fs from 'fs-extra';
 import { flatten, filter, uniq, concat, map, equals } from 'ramda';
+import { PathOsBased } from './../../utils/path';
 import { CACHE_ROOT, PACKAGE_JSON } from '../../constants';
 import { Component } from '../component';
 import ConsumerComponent from '../../consumer/component';
 import { PackageManager } from '../package-manager';
 import { Capsule } from './capsule';
-import writeComponentsToCapsules from './write-components-to-capsules';
+import writeComponentsToCapsules, { getCurrentPackageJson } from './write-components-to-capsules';
 import Consumer from '../../consumer/consumer';
 import { loadScope } from '../../scope';
 import CapsuleList from './capsule-list';
@@ -19,6 +20,7 @@ import componentIdToPackageName from '../../utils/bit/component-id-to-package-na
 import { symlinkDependenciesToCapsules } from './symlink-dependencies-to-capsules';
 import logger from '../../logger/logger';
 import { DEPENDENCIES_FIELDS } from '../../constants';
+import { CapsuleConfig } from './capsule/capsule';
 
 const CAPSULES_BASE_DIR = path.join(CACHE_ROOT, 'capsules'); // TODO: move elsewhere
 
@@ -32,7 +34,11 @@ export type Network = {
   components: Graph;
 };
 
-async function createCapsulesFromComponents(components: any[], baseDir, orchOptions): Promise<Capsule[]> {
+async function createCapsulesFromComponents(
+  components: any[],
+  baseDir,
+  orchOptions: CapsuleConfig
+): Promise<Capsule[]> {
   const capsules: Capsule[] = await Promise.all(
     map((component: Component) => {
       return Capsule.createFromComponent(component, baseDir, orchOptions);
@@ -51,25 +57,26 @@ function findSuccessorsInGraph(graph, seeders) {
 }
 
 export default class Isolator {
-  constructor(private packageManager: PackageManager) {}
+  constructor(private packageManager: PackageManager, private _cacheWrittenComps = new BitIds()) {}
   static async provide([packageManager]: IsolatorDeps) {
     return new Isolator(packageManager);
   }
 
-  async createNetworkFromConsumer(seeders: string[], consumer: Consumer, opts?: {}): Promise<Network> {
+  async createNetworkFromConsumer(seeders: string[], consumer: Consumer, opts: CapsuleConfig = {}): Promise<Network> {
     logger.debug(`isolatorExt, createNetworkFromConsumer ${seeders.join(', ')}`);
     const seedersIds = seeders.map(seeder => consumer.getParsedId(seeder));
     const graph = await buildOneGraphForComponents(seedersIds, consumer);
     const baseDir = path.join(CAPSULES_BASE_DIR, hash(consumer.projectPath)); // TODO: move this logic elsewhere
+    opts.workspaceDir = consumer.getPath();
     return this.createNetwork(seeders, graph, baseDir, opts);
   }
-  async createNetworkFromScope(seeders: string[], opts?: {}): Promise<Network> {
+  async createNetworkFromScope(seeders: string[], opts?: CapsuleConfig): Promise<Network> {
     const scope = await loadScope(process.cwd());
     const graph = await Graph.buildGraphFromScope(scope);
     const baseDir = path.join(CAPSULES_BASE_DIR, hash(scope.path)); // TODO: move this logic elsewhere
     return this.createNetwork(seeders, graph, baseDir, opts);
   }
-  async createNetwork(seeders: string[], graph: Graph, baseDir, opts?: {}) {
+  async createNetwork(seeders: string[], graph: Graph, baseDir: PathOsBased, opts?: CapsuleConfig) {
     const config = Object.assign(
       {},
       {
@@ -80,6 +87,9 @@ export default class Isolator {
     );
     const components = findSuccessorsInGraph(graph, seeders);
     const capsules = await createCapsulesFromComponents(components, baseDir, config);
+    const componentsToRewrite = components.filter(c => !this._cacheWrittenComps.has(c.id));
+    // @ts-ignore
+    const capsulesToRewrite = capsules.filter(c => !this._cacheWrittenComps.has(c.component.id));
 
     const capsuleList = new CapsuleList(
       ...capsules.map(c => {
@@ -87,9 +97,23 @@ export default class Isolator {
         return { id, value: c };
       })
     );
-    const capsulesWithPackagesData = await getCapsulesPackageJsonData(capsules);
+    const capsulesWithPackagesData = await getCapsulesPackageJsonData(capsulesToRewrite);
 
-    await writeComponentsToCapsules(components, graph, capsules, capsuleList, this.packageManager.name);
+    const componentsWithPackageJson = await writeComponentsToCapsules(
+      componentsToRewrite,
+      graph,
+      capsuleList,
+      this.packageManager.name,
+      opts?.workspaceDir
+    );
+    // @ts-ignore
+    capsulesWithPackagesData.forEach(capsuleWithPackageData => {
+      // @ts-ignore
+      const bitId = capsuleWithPackageData.capsule.component.id as BitId;
+      const writtenCompResult = componentsWithPackageJson.find(c => c.component.id.isEqual(bitId));
+      if (!writtenCompResult) throw new Error(`missing written component of ${bitId.toString()}`);
+      capsuleWithPackageData.currentPackageJson = writtenCompResult.packageJsonWithBitDeps.packageJsonObject;
+    });
     if (config.installPackages) {
       const capsulesToInstall: Capsule[] = capsulesWithPackagesData
         .filter(capsuleWithPackageData => {
@@ -111,6 +135,7 @@ export default class Isolator {
         JSON.stringify(capsuleWithPackageData.currentPackageJson, null, 2)
       );
     });
+    this._cacheWrittenComps.push(...componentsToRewrite.map(c => c.id));
 
     return {
       capsules: capsuleList,
@@ -154,10 +179,10 @@ async function getCapsulesPackageJsonData(capsules: Capsule[]): Promise<CapsuleP
       const packageJsonPath = path.join(capsule.wrkDir, 'package.json');
       let previousPackageJson: any = null;
       // @ts-ignore this capsule.component thing MUST BE FIXED, once done, if it doesn't have the ConsumerComponent, use the "component" var above
-      const currentPackageJson = getCurrentPackageJson(capsule.component as ConsumerComponent);
+      // const currentPackageJson = getCurrentPackageJson(capsule.component as ConsumerComponent, true);
       const result: CapsulePackageJsonData = {
         capsule,
-        currentPackageJson: currentPackageJson.packageJsonObject,
+        currentPackageJson: null,
         previousPackageJson: null
       };
       try {
@@ -169,31 +194,4 @@ async function getCapsulesPackageJsonData(capsules: Capsule[]): Promise<CapsuleP
       return result;
     })
   );
-}
-
-function getCurrentPackageJson(component: ConsumerComponent): PackageJsonFile {
-  const newVersion = '0.0.1-new';
-  const getBitDependencies = (dependencies: BitIds) => {
-    return dependencies.reduce((acc, depId: BitId) => {
-      const packageDependency = depId.hasVersion() ? depId.version : newVersion;
-      const packageName = componentIdToPackageName(depId, component.bindingPrefix, component.defaultScope);
-      acc[packageName] = packageDependency;
-      return acc;
-    }, {});
-  };
-  const bitDependencies = getBitDependencies(component.dependencies.getAllIds());
-  const bitDevDependencies = getBitDependencies(component.devDependencies.getAllIds());
-  const bitExtensionDependencies = getBitDependencies(component.extensions.extensionsBitIds);
-  const packageJson = PackageJsonFile.createFromComponent('.', component, false);
-  const addDependencies = (packageJsonFile: PackageJsonFile) => {
-    packageJsonFile.addDependencies(bitDependencies);
-    packageJsonFile.addDevDependencies({
-      ...bitDevDependencies,
-      ...bitExtensionDependencies
-    });
-  };
-  addDependencies(packageJson);
-  packageJson.addOrUpdateProperty('version', component.id.hasVersion() ? component.id.version : newVersion);
-  packageJson.removeDependency('bit-bin');
-  return packageJson;
 }

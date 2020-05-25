@@ -12,11 +12,12 @@ const tsconfig = require('./tsconfig.default.json');
 
 console.log(process.cwd());
 function transpile() {
+  tsconfig.baseUrl = __dirname;
   fs.writeFileSync('tsconfig.json', JSON.stringify(tsconfig, null, 2));
   let results;
   try {
     // @todo: make sure this is working on Windows
-    results = childProcess.execSync(path.join(__dirname, 'node_modules/.bin/tsc'));
+    results = childProcess.execSync(path.join(__dirname, '..', 'node_modules/.bin/tsc'));
   } catch (err) {
     console.log('transpile -> err', err);
     console.log('transpile -> stdout', err.stdout ? err.stdout.toString() : '');

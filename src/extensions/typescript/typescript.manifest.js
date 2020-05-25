@@ -11,7 +11,7 @@ module.exports = {
 };
 
 async function provider() {
-  const defineCompiler = () => ({ taskFile: 'transpile' });
+  const defineCompiler = () => ({ taskFile: 'dist/transpile' });
   return { defineCompiler, watchMultiple };
 }
 

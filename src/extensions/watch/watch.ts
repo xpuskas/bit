@@ -94,7 +94,7 @@ export default class Watch {
     const allIds = watchers.map(w => w.componentIds);
     const flattenedIds = R.flatten(allIds);
     if (!flattenedIds.length) return;
-    await this.compile.compile(flattenedIds, false);
+    // await this.compile.compile(flattenedIds, false);
     this.multipleWatchers = watchers.map(watcher => {
       if (!watcher.compilerInstance.watchMultiple) {
         throw new Error(`compiler ${watcher.compilerId.toString()} doesn't implement watchMultiple`);

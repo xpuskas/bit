@@ -1,3 +1,4 @@
+import { flatten } from 'ramda';
 import { Harmony } from '@teambit/harmony';
 import path from 'path';
 import pMapSeries from 'p-map-series';
@@ -34,14 +35,14 @@ type buildHookResult = { id: BitId; dists?: Array<{ path: string; content: strin
 
 type CompilerInstance = {
   defineCompiler: () => { taskFile: string };
-  watchMultiple?: (capsulePaths: string[]) => any;
+  compileMultiple?: (capsulePaths: string[]) => any;
   compileFile: (
     fileContent: string,
     options: { componentDir: string; filePath: string }
   ) => Array<{ outputText: string; outputPath: string }> | null;
 };
 
-type AggregatedWatcher = {
+type AggregatedCompilers = {
   compilerId: BitId;
   compilerInstance: CompilerInstance;
   componentIds: BitId[];
@@ -90,19 +91,50 @@ export class Compile {
     const componentsAndCapsules = await getComponentsAndCapsules(componentsIds, this.workspace);
     logger.debug(`compilerExt, completed created of capsules for ${componentsIds.join(', ')}`);
     const idsAndFlows = new IdsAndFlows();
+    const aggregatedCompilers: AggregatedCompilers[] = [];
     const componentsWithLegacyCompilers: ComponentAndCapsule[] = [];
     componentsAndCapsules.forEach(c => {
       const compileConfig = this.getCompilerConfig(c.consumerComponent);
-      const taskName = this.getTaskNameFromCompiler(compileConfig, c.component.config.extensions);
-      const value = taskName ? [taskName] : [];
-      if (compileConfig) {
-        idsAndFlows.push({ id: c.consumerComponent.id, value });
-      } else {
+      const extensions = c.component.config.extensions;
+      if (!compileConfig) {
         componentsWithLegacyCompilers.push(c);
+        return;
       }
+      if (!compileConfig.compiler) {
+        idsAndFlows.push({ id: c.consumerComponent.id, value: [] });
+        return;
+      }
+      const compilerInstance = this.getCompilerInstance(compileConfig.compiler, extensions);
+      if (compilerInstance.compileMultiple) {
+        const compilerId = this.getCompilerBitId(compileConfig.compiler as string, extensions);
+        const existingCompiler = aggregatedCompilers.find(w => w.compilerId.isEqual(compilerId));
+        if (existingCompiler) {
+          existingCompiler.componentIds.push(c.consumerComponent.id);
+          existingCompiler.capsulePaths.push(c.capsule.wrkDir);
+        } else {
+          aggregatedCompilers.push({
+            compilerId,
+            compilerInstance,
+            componentIds: [c.consumerComponent.id],
+            capsulePaths: [c.capsule.wrkDir]
+          });
+        }
+        return;
+      }
+      const taskName = this.getTaskNameFromCompiler(compileConfig.compiler, compilerInstance);
+      idsAndFlows.push({ id: c.consumerComponent.id, value: [taskName] });
     });
     let newCompilersResultOnCapsule: BuildResult[] = [];
     let oldCompilersResult: BuildResult[] = [];
+    let aggregatedCompilersResult: BuildResult[] = [];
+    if (aggregatedCompilers.length) {
+      const aggregatedResultsP = aggregatedCompilers.map(compilerGroup => {
+        if (!compilerGroup.compilerInstance.compileMultiple) throw new Error('compileMultiple was not implemented');
+        return compilerGroup.compilerInstance.compileMultiple(compilerGroup.capsulePaths);
+      });
+      aggregatedCompilersResult = flatten(await Promise.all(aggregatedResultsP));
+      console.log('Compile -> aggregatedCompilersResult', aggregatedCompilersResult);
+    }
     if (idsAndFlows.length) {
       newCompilersResultOnCapsule = await this.compileWithNewCompilersOnCapsules(
         idsAndFlows,
@@ -114,7 +146,7 @@ export class Compile {
       oldCompilersResult = await this.compileWithLegacyCompilers(components, noCache, verbose, dontPrintEnvMsg);
     }
 
-    return [...newCompilersResultOnCapsule, ...oldCompilersResult];
+    return [...newCompilersResultOnCapsule, ...oldCompilersResult, ...aggregatedCompilersResult];
   }
 
   async compileOnWorkspace(
@@ -247,10 +279,7 @@ the following extensions are available: ${this.harmony.extensionsIds.join(', ')}
     return compilerExtension;
   }
 
-  private getTaskNameFromCompiler(compileConfig, extensions: ExtensionDataList): string | null {
-    if (!compileConfig || !compileConfig.compiler) return null;
-    const compiler = compileConfig.compiler as string;
-    const compilerInstance = this.getCompilerInstance(compiler, extensions);
+  private getTaskNameFromCompiler(compiler: string, compilerInstance: CompilerInstance): string {
     const defineCompiler = compilerInstance.defineCompiler;
     if (!defineCompiler || typeof defineCompiler !== 'function') {
       throw new GeneralError(`the compiler "${compiler}" instance doesn't have "defineCompiler" function`);
@@ -295,7 +324,7 @@ the following extensions are available: ${this.harmony.extensionsIds.join(', ')}
       const firstResult = result[0]; // for compile it's always one result because there is only one task to run
       // @todo: currently the error is not passed into runMultiple method. once it's there, show the acutal error.
       // although it sometimes has "err" the data there doesn't help. Flows changes it somewhere to unreadable data.
-      if (firstResult.code !== 0 || firstResult.value.err) {
+      if (firstResult.code !== 0 || (firstResult.value && firstResult.value.err)) {
         // an example of id: 'bar:@bit/remote-scope.extensions.typescript:transpile'
         const taskItSplit = firstResult.id.split(':');
         const taskFile = `${taskItSplit[1]}/${taskItSplit[2]}`;
@@ -431,11 +460,10 @@ cd ${reportResult.result.value.capsule.wrkDir} && node ${SCRIPT_FILENAME} ${task
     return distsFiles.map(d => d.path);
   }
 
-  // @todo: this probably going to be changed to aggregate compilers, not watchers.
-  public async aggregateWatchersByCompiler(): Promise<AggregatedWatcher[]> {
+  public async aggregateCompilersByCompiler(): Promise<AggregatedCompilers[]> {
     const componentsAndCapsules = await getComponentsAndCapsules([], this.workspace);
     logger.debug(`compilerExt.getWatchProcesses, completed created of capsules`);
-    const watchers: AggregatedWatcher[] = [];
+    const compilers: AggregatedCompilers[] = [];
     componentsAndCapsules.forEach(c => {
       const extensions = c.component.config.extensions;
       const compileCore = extensions.findCoreExtension('compile');
@@ -446,14 +474,14 @@ cd ${reportResult.result.value.capsule.wrkDir} && node ${SCRIPT_FILENAME} ${task
       if (!compileConfig || !compileConfig.compiler) return;
 
       const compilerInstance = this.getCompilerInstance(compileConfig.compiler as string, extensions);
-      if (!compilerInstance.watchMultiple) return; // the component doesn't support it, ignore.
+      if (!compilerInstance.compileMultiple) return; // the component doesn't support it, ignore.
       const compilerId = this.getCompilerBitId(compileConfig.compiler as string, extensions);
-      const existingWatcher = watchers.find(w => w.compilerId.isEqual(compilerId));
-      if (existingWatcher) {
-        existingWatcher.componentIds.push(c.consumerComponent.id);
-        existingWatcher.capsulePaths.push(c.capsule.wrkDir);
+      const existingCompiler = compilers.find(w => w.compilerId.isEqual(compilerId));
+      if (existingCompiler) {
+        existingCompiler.componentIds.push(c.consumerComponent.id);
+        existingCompiler.capsulePaths.push(c.capsule.wrkDir);
       } else {
-        watchers.push({
+        compilers.push({
           compilerId,
           compilerInstance,
           componentIds: [c.consumerComponent.id],
@@ -461,7 +489,7 @@ cd ${reportResult.result.value.capsule.wrkDir} && node ${SCRIPT_FILENAME} ${task
         });
       }
     });
-    return watchers;
+    return compilers;
   }
 }
 

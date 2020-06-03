@@ -16,7 +16,7 @@ module.exports = {
 
 async function provider() {
   const defineCompiler = () => ({ taskFile: 'transpile' });
-  return { defineCompiler, watchMultiple, compileFile };
+  return { defineCompiler, compileMultiple, compileFile };
 }
 
 /**
@@ -70,7 +70,7 @@ function compileFile(fileContent, options) {
   return outputFiles;
 }
 
-function watchMultiple(capsulePaths) {
+function compileMultiple(capsulePaths) {
   const md5 = crypto.createHash('md5');
   const hash = md5.update(capsulePaths.join(','));
   const capsulePathsHash = hash.digest('hex');
@@ -87,7 +87,10 @@ function watchMultiple(capsulePaths) {
   };
   fs.writeFileSync(mainTsconfigPath, JSON.stringify(mainTsconfig, null, 2));
   console.log('__dirname', __dirname);
+  capsulePaths.forEach(capsulePath =>
+    fs.writeFileSync(path.join(capsulePath, 'tsconfig.json'), JSON.stringify(tsconfig, null, 2))
+  );
   const tscPath = path.join(__dirname, 'node_modules/.bin/tsc');
-  const results = childProcess.exec(`${tscPath} --build ${tsconfigFilename} -w`, { cwd: tmpDir });
-  return results;
+  const output = childProcess.execSync(`${tscPath} --build ${tsconfigFilename} --verbose`, { cwd: tmpDir });
+  return output.toString();
 }

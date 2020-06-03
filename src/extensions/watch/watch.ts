@@ -90,7 +90,7 @@ export default class Watch {
   }
 
   async populateWatcherProcesses() {
-    const watchers = await this.compile.aggregateWatchersByCompiler();
+    const watchers = await this.compile.aggregateCompilersByCompiler();
     const allIds = watchers.map(w => w.componentIds);
     const flattenedIds = R.flatten(allIds);
     if (!flattenedIds.length) return;

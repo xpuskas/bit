@@ -35,7 +35,7 @@ export class Environments {
     private envSlot: EnvsRegistry
   ) {}
 
-  // hack until @gilad fixes ids.
+  // hack until gilad fixes ids.
   readonly id: string = '@teambit/envs';
 
   async createEnvironment(components?: Component[]): Promise<Runtime> {

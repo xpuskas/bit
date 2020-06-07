@@ -8,7 +8,6 @@ import { CreateExt } from '../create';
 // import { DependencyResolverExt } from '../dependency-resolver';
 import { Environments } from '../environments';
 import { FlowsExt } from '../flows';
-// import { GitExt } from '../git';
 import { ComponentGraphExt } from '../graph';
 import { InsightsExt } from '../insights';
 import { InstallExt } from '../install';
@@ -20,7 +19,6 @@ import { PaperExt } from '../paper';
 import { React } from '../react';
 import { ReporterExt } from '../reporter';
 import { ScopeExtension } from '../scope';
-import { TestExt } from '../test';
 import { TesterExtension } from '../tester';
 import { ReleasesExtension } from '../releases';
 import { VariantsExt } from '../variants';
@@ -53,7 +51,6 @@ export const manifestsMap = {
   [React.name]: React,
   [ReporterExt.name]: ReporterExt,
   [ScopeExtension.name]: ScopeExtension,
-  [TestExt.name]: TestExt,
   // TODO: take from the extension itself & change name to follow convention
   Tester: TesterExtension,
   // TODO: take from the extension itself & change name to follow convention

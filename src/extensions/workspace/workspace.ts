@@ -3,7 +3,7 @@ import { Harmony } from '@teambit/harmony';
 import { difference } from 'ramda';
 import { compact } from 'ramda-adjunct';
 import { Consumer, loadConsumer } from '../../consumer';
-import { Scope } from '../scope';
+import { ScopeExtension } from '../scope';
 import { Component, ComponentFactory, ComponentID } from '../component';
 import ComponentsList from '../../consumer/component/components-list';
 import { BitIds, BitId } from '../../bit-id';
@@ -21,6 +21,7 @@ import { loadResolvedExtensions } from '../utils/load-extensions';
 import { Variants } from '../variants';
 import LegacyComponentConfig from '../../consumer/config';
 import { ComponentScopeDirMap } from '../config/workspace-config';
+import legacyLogger from '../../logger/logger';
 
 /**
  * API of the Bit Workspace
@@ -39,7 +40,7 @@ export default class Workspace implements ComponentHost {
     /**
      * access to the Workspace's `Scope` instance
      */
-    readonly scope: Scope,
+    readonly scope: ScopeExtension,
 
     /**
      * access to the `ComponentProvider` instance
@@ -264,7 +265,13 @@ export default class Workspace implements ComponentHost {
     const extensionsToLoad = difference(extensionsIds, loadedExtensions);
     let resolvedExtensions: ResolvedComponent[] = [];
     resolvedExtensions = await this.load(extensionsToLoad);
-    return loadResolvedExtensions(this.harmony, resolvedExtensions, this.logger);
+    // TODO: change to use the new reporter API, in order to implement this
+    // we would have to have more than 1 instance of the Reporter extension (one for the workspace and one for the CLI command)
+    //
+    // We need to think of a facility to show "system messages that do not stop execution" like this. We might want to (for example)
+    // have each command query the logger for such messages and decide whether to display them or not (according to the verbosity
+    // level passed to it).
+    return loadResolvedExtensions(this.harmony, resolvedExtensions, legacyLogger);
   }
 
   /**

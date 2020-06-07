@@ -78,11 +78,13 @@ export class ReactEnv implements Environment {
     return ReleasePipe.from([this.tester.task]);
   }
 
+  devServer(workspace: Workspace) {}
+
   dev(workspace: Workspace, components: Component[]) {
     // if (config.compiler.watch) {
     //   this.typescript.watch();
     // }
-    // remove once gilad has metada
+    // remove once gilad has metadata
     const patchedComponent = this.patchComponents(components, workspace);
     const config = createWebpackConfig(workspace.path, this.getEntries(patchedComponent));
     const compiler = webpack(config);

@@ -2,12 +2,11 @@
 import React, { useState, useEffect } from 'react';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Box, Color, Text } from 'ink';
-import { Runtime } from './runtime';
 // import { EnvConsole } from './components';
 // make sure to update eslint to read JSX.
 import { Command, CLIArgs } from '../paper';
 import { Workspace } from '../workspace';
-import { Environments } from './environments.extension';
+import { Composer } from './composer.extension';
 
 export class StartCmd implements Command {
   name = 'start [pattern]';
@@ -19,9 +18,9 @@ export class StartCmd implements Command {
 
   constructor(
     /**
-     * access to the extension instance.
+     * composer extension api.
      */
-    private envs: Environments,
+    private composer: Composer,
 
     /**
      * access to workspace.
@@ -37,16 +36,15 @@ export class StartCmd implements Command {
   async render([userPattern]: CLIArgs): Promise<React.ReactElement> {
     // @teambit/variants should be the one to take care of component patterns.
     const pattern = userPattern && userPattern.toString();
-    const envRuntime = await this.envs.createEnvironment(pattern ? await this.workspace.byPattern(pattern) : undefined);
+    const composerRuntime = await this.composer.start(pattern ? await this.workspace.byPattern(pattern) : undefined);
     this.clearConsole();
     // @ts-ignore
-    envRuntime.dev();
     this.clearConsole();
-    return <EnvConsole runtime={envRuntime} />;
+    return <EnvConsole runtime={composerRuntime} />;
   }
 }
 
-export function EnvConsole({ runtime }: { runtime: Runtime }) {
+export function EnvConsole({ runtime }: any) {
   const [, setCounter] = useState(0);
 
   useEffect(() => {

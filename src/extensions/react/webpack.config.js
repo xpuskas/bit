@@ -41,7 +41,7 @@ module.exports = function(workspaceDir, entryFiles) {
 
       chunkFilename: 'static/js/[name].chunk.js',
 
-      // point sourcemap entries to original disk locations (format as URL on windows)
+      // point source-map entries to original disk locations (format as URL on windows)
       devtoolModuleFilenameTemplate: info => path.resolve(info.absoluteResourcePath).replace(/\\/g, '/'),
 
       // this defaults to 'window', but by setting it to 'this' then

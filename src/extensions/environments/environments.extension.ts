@@ -1,6 +1,4 @@
 import { Slot, SlotRegistry } from '@teambit/harmony';
-import { StartCmd } from './start.cmd';
-import { BitCliExt, BitCli } from '../cli';
 import { WorkspaceExt, Workspace } from '../workspace';
 import { Component } from '../component';
 import { Environment } from './environment';
@@ -17,7 +15,7 @@ export type EnvsConfig = {
 export type EnvOptions = {};
 
 export class Environments {
-  static dependencies = [BitCliExt, WorkspaceExt];
+  static dependencies = [WorkspaceExt];
 
   constructor(
     /**
@@ -37,16 +35,8 @@ export class Environments {
     private envSlot: EnvsRegistry
   ) {}
 
-  // hack until gilad fixes ids.
+  // hack until @gilad fixes ids.
   readonly id: string = '@teambit/envs';
-
-  /**
-   * create a development runtime environment.
-   */
-  async dev(components?: Component[]): Promise<Runtime> {
-    // :TODO how to standardize this? we need to make sure all validation errors will throw nicely at least.
-    return this.createRuntime(components || (await this.workspace.list()));
-  }
 
   async createEnvironment(components?: Component[]): Promise<Runtime> {
     return this.createRuntime(components || (await this.workspace.list()));
@@ -76,7 +66,7 @@ export class Environments {
     return new Runtime(this.workspace, this.aggregateByDefs(components));
   }
 
-  // :TODO can be refactorerd to few utilities who will make repeating this very easy.
+  // :TODO can be refactored to few utilities who will make repeating this very easy.
   private aggregateByDefs(components: Component[]): EnvRuntime[] {
     const map = {};
     components.forEach((current: Component) => {
@@ -109,9 +99,8 @@ export class Environments {
 
   static defaultConfig = {};
 
-  static async provider([cli, workspace]: [BitCli, Workspace], config: EnvsConfig, [envSlot]: [EnvsRegistry]) {
+  static async provider([workspace]: [Workspace], config: EnvsConfig, [envSlot]: [EnvsRegistry]) {
     const envs = new Environments(config, workspace, envSlot);
-    cli.register(new StartCmd(envs, workspace));
     return envs;
   }
 }

@@ -7,7 +7,6 @@ export default (workspace: Workspace) => {
       type Workspace {
         path: String
         components: [Component]
-        version: Number
       }
 
       type Component {

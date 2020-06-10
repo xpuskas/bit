@@ -15,7 +15,7 @@ export type ReleasesConfig = {
   /**
    * number of components to build in parallel.
    */
-  parallel: 10;
+  parallel: number;
 };
 
 export class ReleasesExtension {

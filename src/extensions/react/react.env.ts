@@ -71,6 +71,14 @@ export class ReactEnv implements Environment {
     return this.ts.createCompiler(tsConfig);
   }
 
+  getDependencies() {
+    return {
+      dev: {},
+      peer: {},
+      runtime: {}
+    };
+  }
+
   /**
    * returns a release pipeline.
    */
@@ -79,6 +87,7 @@ export class ReactEnv implements Environment {
   }
 
   dev(workspace: Workspace, components: Component[]) {
+    this.webpack.createDevServer(webpackConfig);
     const patchedComponent = this.patchComponents(components, workspace);
     const config = createWebpackConfig(workspace.path, this.getEntries(patchedComponent));
     const compiler = webpack(config);

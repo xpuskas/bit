@@ -38,7 +38,7 @@ export default class Workspace implements ComponentHost {
     public consumer: Consumer,
 
     /**
-     * access to the Workspace's `Scope` instance
+     * access to the workspace `Scope` instance
      */
     readonly scope: ScopeExtension,
 

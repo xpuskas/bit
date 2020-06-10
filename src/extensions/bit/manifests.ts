@@ -5,6 +5,7 @@ import { ComponentFactoryExt } from '../component';
 import { ConfigExt } from '../config';
 import { CoreExt } from '../core';
 import { CreateExt } from '../create';
+import { Composer } from '../composer';
 // import { DependencyResolverExt } from '../dependency-resolver';
 import { Environments } from '../environments';
 import { FlowsExt } from '../flows';
@@ -45,6 +46,7 @@ export const manifestsMap = {
   [IsolatorExt.name]: IsolatorExt,
   [LoggerExt.name]: LoggerExt,
   [PackExt.name]: PackExt,
+  [Composer.name]: Composer,
   [PackageManagerExt.name]: PackageManagerExt,
   [PaperExt.name]: PaperExt,
   // TODO: take from the extension itself & change name to follow convention

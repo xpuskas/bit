@@ -1,3 +1,4 @@
+import pMapSeries from 'p-map-series';
 import { Component } from '../component';
 import { Network } from '../isolator/isolator';
 import { ExecutionContext } from '../environments';
@@ -39,8 +40,7 @@ export class ReleasePipe {
    * execute a pipeline of release tasks.
    */
   async execute(releaseContext: ReleaseContext) {
-    // :todo we shouldn't use Promise.all() here but rather stream output and progress.
-    return Promise.all(this.tasks.map(task => task.execute(releaseContext)));
+    return pMapSeries(this.tasks, (task: ReleaseTask) => task.execute(releaseContext));
   }
 
   /**

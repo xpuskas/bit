@@ -58,6 +58,7 @@ dist/*
 dist-legacy/
 flow-typed/
 eslint-report.html
+types/*
 
 #distrubution
 distribution/
@@ -81,7 +82,7 @@ nodeBin
 _book
 
 # pkg releases
-releases/
+/releases/
 bin/bit
 
 # sonarcloud dir

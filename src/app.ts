@@ -1,49 +1,36 @@
 import Bluebird from 'bluebird';
-import harmony, { HarmonyError } from '@teambit/harmony';
+import harmony from '@teambit/harmony';
 import HooksManager from './hooks';
-import defaultHandleError, { findErrorDefinition } from './cli/default-error-handler';
-import { logErrAndExit } from './cli/command-registry';
-import { BitExt } from './extensions/bit';
-import { PaperError } from './extensions/paper';
+import { handleErrorAndExit, handleUnhandledRejection } from './cli/command-runner';
+import { ConfigExt } from './extensions/config';
+import { BitExt, registerCoreExtensions } from './extensions/bit';
+import { CLIExtension } from './extensions/cli';
 
 process.env.MEMFS_DONT_WARN = 'true'; // suppress fs experimental warnings from memfs
 
-// removing this, default to longStackTraces also when env is `development`, which impacts the
-// performance dramatically. (see http://bluebirdjs.com/docs/api/promise.longstacktraces.html)
+// by default Bluebird enables the longStackTraces when env is `development`, or when
+// BLUEBIRD_DEBUG is set.
+// the drawback of enabling it all the time is a performance hit. (see http://bluebirdjs.com/docs/api/promise.longstacktraces.html)
+// some commands are slower by 20% with this enabled.
 Bluebird.config({
-  longStackTraces: true
-  // longStackTraces: Boolean(process.env.BLUEBIRD_DEBUG)
+  longStackTraces: Boolean(process.env.BLUEBIRD_DEBUG || process.env.BIT_LOG)
 });
-// loudRejection();
-HooksManager.init();
-try {
-  harmony
-    .run(BitExt)
-    .then(() => {
-      // harmony.set([BitCliExt]);
-    })
-    .then(() => {
-      const cli = harmony.get('BitCli');
-      // @ts-ignore :TODO until refactoring cli extension to dynamiclly load extensions
-      return cli?.instance.run();
-    })
-    .catch(err => {
-      const originalError = err.originalError || err;
-      const errorHandlerExist = findErrorDefinition(originalError);
-      let handledError;
-      if (originalError instanceof PaperError) {
-        // at this point CLI or Harmony might be broken.
-        // handling by paper
-        PaperError.handleError(err);
-      } else if (errorHandlerExist) {
-        handledError = defaultHandleError(originalError);
-      } else {
-        handledError = err;
-      }
-      logErrAndExit(handledError, process.argv[1] || '');
-    });
-  // Catching errors from the load phase
-} catch (err) {
-  const handledError = err instanceof HarmonyError ? err.toString() : err;
-  logErrAndExit(handledError, process.argv[1] || '');
+
+initApp();
+
+async function initApp() {
+  try {
+    registerCoreExtensions();
+    HooksManager.init();
+    await harmony.run(ConfigExt);
+    await harmony.set([BitExt]);
+    const cli: CLIExtension = harmony.get('CLIExtension');
+    if (!cli) throw new Error(`failed to get CLIExtension from Harmony`);
+    await cli.run();
+  } catch (err) {
+    const originalError = err.originalError || err;
+    handleErrorAndExit(originalError, process.argv[2]);
+  }
 }
+
+process.on('unhandledRejection', err => handleUnhandledRejection(err));

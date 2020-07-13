@@ -63,9 +63,17 @@ bit will install these commands in `/usr/local/bin/` directory, so in order to r
 ```bash
   npm run e2e-test --bit_bin=bit-dev
 ```
-Use `--debug` flag to watch the running commands and the output. It might be a useful tool for debugging failed e2e tests.
 
-Use `--with_ssh` flag to switch from exporting by using file-system to SSH approach. Make sure you are able to run 'ssh `whoami`@127.0.0.1' on your local.
+- run e2e-tests for debugging (shows output and doesn't delete the workspaces)
+```bash
+  npm run e2e-test:debug
+```
+
+- run e2e-tests for SSH (switch from exporting by using file-system to SSH approach). Make sure you are able to run 'ssh `whoami`@127.0.0.1' on your local.
+```bash
+  npm run e2e-test:ssh
+  npm run e2e-test:ssh-debug
+```
 
 When adding end to end tests please make sure new test files are created in the following name convention: ```name.e2e.[number].js``` where number should be 1/2/3. This was made in order to batch work in appveyor.
 
@@ -73,7 +81,7 @@ Keep in mind that running the e2e-tests locally may take hours to complete, it's
 
 ### Debugging
 
-The code is heavy on promises, as such, some errors don't have a useful stack trace. To enable the long stack trace of Bluebird, please prefix your command with `BLUEBIRD_DEBUG=1`.
+The code is heavy on promises, as such, some errors don't have a useful stack trace. Bluebird enables the long stack trace when the env is development or when `BLUEBIRD_DEBUG` is set. Normally, the full stack trace is not shown on the console but logged in the debug.log file. (located at /Users/your-use/Library/Caches/Bit/logs/debug.log on Mac).
 
 In some cases, you might get very helpful info by prefixing Bit command with `BIT_LOG=*`. For now, this helps to get more info about why a component is shown as modified and it also shows the events for `bit watch`.
 

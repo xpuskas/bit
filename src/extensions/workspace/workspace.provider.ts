@@ -1,15 +1,30 @@
 import { Harmony } from '@teambit/harmony';
-import { Scope } from '../scope/';
+import { ScopeExtension } from '../scope';
 import Workspace from './workspace';
 import { ComponentFactory } from '../component';
 import { loadConsumerIfExist } from '../../consumer';
-import { Isolator } from '../isolator';
+import { IsolatorExtension } from '../isolator';
 import { Logger } from '../logger';
-import { WorkspaceConfig } from '../workspace-config';
 import ConsumerComponent from '../../consumer/component';
-import { DependencyResolver } from '../dependency-resolver';
+import { DependencyResolverExtension } from '../dependency-resolver';
+import { Variants } from '../variants';
+import { WorkspaceExtConfig } from './types';
+import { GraphQLExtension } from '../graphql';
+import workspaceSchema from './workspace.graphql';
+import InstallCmd from './install.cmd';
+import { CLIExtension } from '../cli';
+import EjectConfCmd from './eject-conf.cmd';
 
-export type WorkspaceDeps = [WorkspaceConfig, Scope, ComponentFactory, Isolator, DependencyResolver, Logger];
+export type WorkspaceDeps = [
+  CLIExtension,
+  ScopeExtension,
+  ComponentFactory,
+  IsolatorExtension,
+  DependencyResolverExtension,
+  Variants,
+  Logger,
+  GraphQLExtension
+];
 
 export type WorkspaceCoreConfig = {
   /**
@@ -27,7 +42,9 @@ export type WorkspaceCoreConfig = {
 };
 
 export default async function provideWorkspace(
-  [workspaceConfig, scope, component, isolator, dependencyResolver, logger]: WorkspaceDeps,
+  [cli, scope, component, isolator, dependencyResolver, variants, logger, graphql]: WorkspaceDeps,
+  config: WorkspaceExtConfig,
+  _slots,
   harmony: Harmony
 ) {
   // don't use loadConsumer() here because the consumer might not be available.
@@ -39,28 +56,41 @@ export default async function provideWorkspace(
   // we'll have to fix this asap.
   try {
     const consumer = await loadConsumerIfExist();
+
     if (consumer) {
       const workspace = new Workspace(
+        config,
         consumer,
-        workspaceConfig,
         scope,
         component,
         isolator,
         dependencyResolver,
+        variants,
         logger.createLogPublisher('workspace'), // TODO: get the 'worksacpe' name in a better way
         undefined,
         harmony
       );
-      ConsumerComponent.registerOnComponentConfigLoading('workspace', async (id, componentConfig) => {
-        const extensionsConfig = componentConfig.allExtensions().toExtensionConfigList();
-        const res = await workspace.loadExtensionsByConfig(extensionsConfig);
-        return res;
+      // ConsumerComponent.registerOnComponentConfigLegacyLoading(
+      //   'workspace',
+      //   async (id, componentConfig: ComponentConfig) => {
+      //     return workspace.loadExtensions(componentConfig.extensions);
+      //   }
+      // );
+      ConsumerComponent.registerOnComponentConfigLoading('workspace', async id => {
+        const wsComponentConfig = await workspace.workspaceComponentConfig(id);
+        await workspace.loadExtensions(wsComponentConfig.componentExtensions);
+        return wsComponentConfig;
       });
+
+      graphql.register(workspaceSchema(workspace));
+      cli.register(new InstallCmd(workspace));
+      cli.register(new EjectConfCmd(workspace));
+
       return workspace;
     }
 
     return undefined;
-  } catch {
+  } catch (err) {
     return undefined;
   }
 }

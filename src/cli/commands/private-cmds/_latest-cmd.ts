@@ -1,4 +1,4 @@
-import Command from '../../command';
+import { LegacyCommand } from '../../legacy-command';
 import { fromBase64, unpackCommand, packCommand, buildCommandMessage } from '../../../utils';
 import { latestVersions } from '../../../api/scope';
 import { migrate } from '../../../api/consumer';
@@ -7,9 +7,10 @@ import { checkVersionCompatibilityOnTheServer } from '../../../scope/network/che
 import clientSupportCompressedCommand from '../../../utils/ssh/client-support-compressed-command';
 
 let compressResponse;
-export default class Latest extends Command {
+export default class Latest implements LegacyCommand {
   name = '_latest <path> <args>';
   private = true;
+  internal = true;
   description = 'latest version numbers of given components';
   alias = '';
   opts = [];

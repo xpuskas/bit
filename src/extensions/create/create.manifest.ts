@@ -1,10 +1,10 @@
 import { ExtensionManifest } from '@teambit/harmony';
-import { BitCliExt } from '../cli';
 import { WorkspaceExt } from '../workspace';
 import { provideCreate } from './create.provider';
+import { CLIExtension } from '../cli';
 
 export default {
-  name: 'create',
-  dependencies: [BitCliExt, WorkspaceExt],
+  name: '@teambit/create',
+  dependencies: [CLIExtension, WorkspaceExt],
   provider: provideCreate
 } as ExtensionManifest;

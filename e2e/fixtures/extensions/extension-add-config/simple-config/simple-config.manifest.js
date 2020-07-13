@@ -1,15 +1,10 @@
-const ComponentFactoryExt = require('bit-bin').ComponentFactoryExt;
+const { getDeclarationCoreExtension } = require('bit-bin');
+const PkgExtension = getDeclarationCoreExtension('@teambit/pkg');
 
 module.exports = {
   name: 'simple config',
-  dependencies: [ComponentFactoryExt],
-  provider: async ([component]) => {
-    console.log('simple config runs');
-    component.registerAddConfig('simple-config', config => {
-      console.log('config registration hook is running');
-      return {
-        'my-custom-key': 'my-custom-val'
-      };
-    });
+  dependencies: [PkgExtension],
+  provider: async ([pkg]) => {
+    pkg.registerPackageJsonNewProps({ 'my-custom-key': 'my-custom-val' });
   }
 };

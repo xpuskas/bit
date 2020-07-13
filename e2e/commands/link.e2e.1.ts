@@ -149,25 +149,25 @@ console.log(isType());`;
     });
     describe('auto linking', () => {
       it('node_modules should contain custom dir name', () => {
-        expect(path.join(helper.scopes.localPath, 'node_modules', 'testLink')).to.be.a.path();
+        expect(path.join(helper.scopes.localPath, 'node_modules', '@testLink')).to.be.a.path();
       });
       it('should create symlink inside custom folder', () => {
         expect(
-          path.join(helper.scopes.localPath, 'node_modules', 'testLink', `${helper.scopes.remote}.bar.foo`)
+          path.join(helper.scopes.localPath, 'node_modules', '@testLink', `${helper.scopes.remote}.bar.foo`)
         ).to.be.a.path();
       });
     });
     describe('manual linking', () => {
       before(() => {
-        fs.removeSync(path.join(helper.scopes.localPath, 'node_modules', 'testLink'));
+        fs.removeSync(path.join(helper.scopes.localPath, 'node_modules', '@testLink'));
         helper.command.runCmd('bit link');
       });
       it('node_modules should contain custom dir name', () => {
-        expect(path.join(helper.scopes.localPath, 'node_modules', 'testLink')).to.be.a.path();
+        expect(path.join(helper.scopes.localPath, 'node_modules', '@testLink')).to.be.a.path();
       });
       it('should create symlink inside custom folder', () => {
         expect(
-          path.join(helper.scopes.localPath, 'node_modules', 'testLink', `${helper.scopes.remote}.bar.foo`)
+          path.join(helper.scopes.localPath, 'node_modules', '@testLink', `${helper.scopes.remote}.bar.foo`)
         ).to.be.a.path();
       });
     });
@@ -178,7 +178,7 @@ console.log(isType());`;
       helper.fixtures.createComponentBarFoo();
       helper.fs.createFile('bar2', 'foo2.js');
       helper.fixtures.addComponentBarFoo();
-      helper.command.addComponentAllowFiles('bar2/foo2.js', { i: 'bar2/foo2' });
+      helper.command.addComponent('bar2/foo2.js', { i: 'bar2/foo2' });
       helper.bitJson.modifyField('bindingPrefix', 'test');
       helper.command.tagAllComponents();
       helper.command.exportAllComponents();
@@ -188,12 +188,12 @@ console.log(isType());`;
       helper.command.importComponent('bar2/foo2');
     });
     it('node_modules should contain custom dir name', () => {
-      expect(path.join(helper.scopes.localPath, 'node_modules', 'test')).to.be.a.path();
+      expect(path.join(helper.scopes.localPath, 'node_modules', '@test')).to.be.a.path();
       expect(
-        path.join(helper.scopes.localPath, 'node_modules', 'test', `${helper.scopes.remote}.bar.foo`)
+        path.join(helper.scopes.localPath, 'node_modules', '@test', `${helper.scopes.remote}.bar.foo`)
       ).to.be.a.path();
       expect(
-        path.join(helper.scopes.localPath, 'node_modules', 'test', `${helper.scopes.remote}.bar2.foo2`)
+        path.join(helper.scopes.localPath, 'node_modules', '@test', `${helper.scopes.remote}.bar2.foo2`)
       ).to.be.a.path();
     });
   });
@@ -220,7 +220,7 @@ console.log(isType());`;
       helper.command.importComponent('utils/is-string');
     });
     it('node_modules should contain custom dir name', () => {
-      expect(path.join(helper.scopes.localPath, 'node_modules', 'bitTest')).to.be.a.path();
+      expect(path.join(helper.scopes.localPath, 'node_modules', '@bitTest')).to.be.a.path();
     });
   });
   describe('component with dependency tree of 3', () => {
@@ -249,7 +249,7 @@ console.log(isType());`;
       helper.command.importComponent('utils/is-string');
       const isStringFixture2 = `const isString = require('@bitTest2/${helper.scopes.remote}.utils.is-string'); module.exports = function isString2() { return isString() +  ' and got is-string2'; };`;
       helper.fs.createFile('test', 'is-string2.js', isStringFixture2);
-      helper.command.addComponentAllowFiles('test/is-string2.js', { i: 'test/is-string2' });
+      helper.command.addComponent('test/is-string2.js', { i: 'test/is-string2' });
       helper.bitJson.modifyField('bindingPrefix', '@bitTest2');
       helper.command.tagAllComponents();
       helper.command.exportAllComponents();
@@ -390,8 +390,8 @@ console.log(isType());`;
         helper.scopeHelper.reInitLocalScope();
         helper.fs.outputFile('foo.sass', 'h1 { color:green; }');
         helper.fs.outputFile('bar.sass', '@import "foo";');
-        helper.command.addComponentAllowFiles('foo.sass');
-        helper.command.addComponentAllowFiles('bar.sass');
+        helper.command.addComponent('foo.sass');
+        helper.command.addComponent('bar.sass');
         helper.command.linkAndRewire();
       });
       it('should add a tilda before the package name', () => {

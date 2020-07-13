@@ -23,6 +23,8 @@ import { COMPONENT_ORIGINS, PRE_EXPORT_HOOK, POST_EXPORT_HOOK, DEFAULT_BINDINGS_
 import ManyComponentsWriter from '../../../consumer/component-ops/many-components-writer';
 import * as packageJsonUtils from '../../../consumer/component/package-json-utils';
 import { forkComponentsPrompt } from '../../../prompts';
+import { publishComponentsToRegistry } from '../../../scope/component-ops/publish-during-export';
+import Component from '../../../consumer/component/consumer-component';
 
 const HooksManagerInstance = HooksManager.getInstance();
 
@@ -38,10 +40,11 @@ export default (async function exportAction(params: {
   force: boolean;
 }) {
   HooksManagerInstance.triggerHook(PRE_EXPORT_HOOK, params);
-  const { updatedIds, nonExistOnBitMap, missingScope, exported } = await exportComponents(params);
+  const { updatedIds, nonExistOnBitMap, missingScope, exported, newIdsOnRemote } = await exportComponents(params);
+  const publishResults = await publishComponentsToRegistry({ newIdsOnRemote, updatedIds });
   let ejectResults;
   if (params.eject) ejectResults = await ejectExportedComponents(updatedIds);
-  const exportResults = { componentsIds: exported, nonExistOnBitMap, missingScope, ejectResults };
+  const exportResults = { componentsIds: exported, nonExistOnBitMap, missingScope, ejectResults, publishResults };
   HooksManagerInstance.triggerHook(POST_EXPORT_HOOK, exportResults);
   return exportResults;
 });
@@ -64,7 +67,13 @@ async function exportComponents({
   codemod: boolean;
   allVersions: boolean;
   force: boolean;
-}): Promise<{ updatedIds: BitId[]; nonExistOnBitMap: BitId[]; missingScope: BitId[]; exported: BitId[] }> {
+}): Promise<{
+  updatedIds: BitId[];
+  nonExistOnBitMap: BitId[];
+  missingScope: BitId[];
+  exported: BitId[];
+  newIdsOnRemote: BitId[];
+}> {
   const consumer: Consumer = await loadConsumer();
   const { idsToExport, missingScope, idsWithFutureScope } = await getComponentsToExport(
     ids,
@@ -73,9 +82,17 @@ async function exportComponents({
     includeNonStaged,
     force
   );
-  if (R.isEmpty(idsToExport)) return { updatedIds: [], nonExistOnBitMap: [], missingScope, exported: [] };
-  if (codemod) _throwForModified(consumer, idsToExport);
-  const { exported, updatedLocally } = await exportMany({
+  if (R.isEmpty(idsToExport)) {
+    return { updatedIds: [], nonExistOnBitMap: [], missingScope, exported: [], newIdsOnRemote: [] };
+  }
+  let componentsToExport: Component[] | undefined;
+  if (codemod) {
+    _throwForModified(consumer, idsToExport);
+    const { components } = await consumer.loadComponents(idsToExport);
+    componentsToExport = components;
+  }
+
+  const { exported, updatedLocally, newIdsOnRemote } = await exportMany({
     scope: consumer.scope,
     ids: idsToExport,
     remoteName: remote,
@@ -90,13 +107,14 @@ async function exportComponents({
   Analytics.setExtraData('num_components', exported.length);
   if (codemod) {
     await reImportComponents(consumer, updatedIds);
-    await cleanOldComponents(consumer, BitIds.fromArray(updatedIds), idsToExport);
+    if (!componentsToExport) throw new Error('componentsToExport was not populated');
+    await cleanOldComponents(consumer, BitIds.fromArray(updatedIds), componentsToExport);
   }
   // it is important to have consumer.onDestroy() before running the eject operation, we want the
   // export and eject operations to function independently. we don't want to lose the changes to
   // .bitmap file done by the export action in case the eject action has failed.
   await consumer.onDestroy();
-  return { updatedIds, nonExistOnBitMap, missingScope, exported };
+  return { updatedIds, nonExistOnBitMap, missingScope, exported, newIdsOnRemote };
 }
 
 function _updateIdsOnBitMap(bitMap: BitMap, componentsIds: BitIds): { updatedIds: BitId[]; nonExistOnBitMap: BitIds } {
@@ -155,29 +173,27 @@ async function getComponentsToExport(
     loader.start(loaderMsg);
     return filterNonScopeIfNeeded(componentsToExport);
   }
-  const idsToExportP = ids.map(async id => {
-    const parsedId = await getParsedId(consumer, id);
-    const status = await consumer.getComponentStatusById(parsedId);
+  loader.start(BEFORE_EXPORT); // show single export
+  const parsedIds = await Promise.all(ids.map(id => getParsedId(consumer, id)));
+  const statuses = await consumer.getManyComponentsStatuses(parsedIds);
+  statuses.forEach(({ id, status }) => {
     if (status.nested) {
       throw new GeneralError(
-        `unable to export "${parsedId.toString()}", the component is not fully available. please use "bit import" first`
+        `unable to export "${id.toString()}", the component is not fully available. please use "bit import" first`
       );
     }
     // don't allow to re-export an exported component unless it's being exported to another scope
-    if (remote && !status.staged && parsedId.scope === remote) {
-      throw new IdExportedAlready(parsedId.toString(), remote);
+    if (remote && !status.staged && id.scope === remote) {
+      throw new IdExportedAlready(id.toString(), remote);
     }
-    return parsedId;
   });
-  loader.start(BEFORE_EXPORT); // show single export
-  const idsToExport = await Promise.all(idsToExportP);
-  await promptForFork(idsToExport);
-  return filterNonScopeIfNeeded(BitIds.fromArray(idsToExport));
+  await promptForFork(parsedIds);
+  return filterNonScopeIfNeeded(BitIds.fromArray(parsedIds));
 }
 
 function getIdsWithFutureScope(ids: BitIds, consumer: Consumer, remote?: string | null): BitIds {
-  const workspaceDefaultScope = consumer.config.workspaceSettings.defaultScope;
-  let workspaceDefaultOwner = consumer.config.workspaceSettings.defaultOwner;
+  const workspaceDefaultScope = consumer.config.defaultScope;
+  let workspaceDefaultOwner = consumer.config.defaultOwner;
   // For backward computability don't treat the default binding prefix as real owner
   if (workspaceDefaultOwner === DEFAULT_BINDINGS_PREFIX) {
     workspaceDefaultOwner = undefined;
@@ -186,7 +202,7 @@ function getIdsWithFutureScope(ids: BitIds, consumer: Consumer, remote?: string 
   const idsArray = ids.map(id => {
     if (remote) return id.changeScope(remote);
     if (id.hasScope()) return id;
-    const overrides = consumer.config.componentsConfig?.getOverrideComponentData(id);
+    const overrides = consumer.config.getComponentConfig(id);
     const componentDefaultScope = overrides ? overrides.defaultScope : null;
     // TODO: handle separation of owner from default scope on component
     // TODO: handle owner of component
@@ -275,15 +291,16 @@ async function reImportComponent(consumer: Consumer, id: BitId) {
 /**
  * remove the components with the old scope from package.json and from node_modules
  */
-async function cleanOldComponents(consumer: Consumer, updatedIds: BitIds, idsToExport: BitIds) {
-  const idsToClean = idsToExport.filter(id => updatedIds.hasWithoutScopeAndVersion(id));
-  await packageJsonUtils.removeComponentsFromWorkspacesAndDependencies(consumer, BitIds.fromArray(idsToClean));
+async function cleanOldComponents(consumer: Consumer, updatedIds: BitIds, componentsToExport: Component[]) {
+  // componentsToExport have the old scope, updatedIds have the new scope, only the old updatedIds
+  //  need to be cleaned. that's why we search within componentsToExport for updatedIds
+  const componentsToClean = componentsToExport.filter(c => updatedIds.hasWithoutScopeAndVersion(c.id));
+  await packageJsonUtils.removeComponentsFromWorkspacesAndDependencies(consumer, componentsToClean);
 }
 
 async function _throwForModified(consumer: Consumer, ids: BitIds) {
-  await pMapSeries(ids, async id => {
-    const status = consumer.getComponentStatusById(id);
-    // @ts-ignore AUTO-ADDED-AFTER-MIGRATION-PLEASE-FIX!
+  const statuses = await consumer.getManyComponentsStatuses(ids);
+  statuses.forEach(({ id, status }) => {
     if (status.modified) {
       throw new GeneralError(
         `unable to perform rewire on "${id.toString()}" because it is modified, please tag or discard your changes before re-trying`

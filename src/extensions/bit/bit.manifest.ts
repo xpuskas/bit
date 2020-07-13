@@ -1,34 +1,17 @@
 import { ExtensionManifest } from '@teambit/harmony';
-import { WorkspaceExt } from '../workspace';
-import { ScopeExt } from '../scope';
-import provideBit from './bit.provider';
-import { ComposerExt } from '../composer';
-import { InstallExt } from '../install';
+import { manifestsMap } from './manifests';
+import { provideBit } from './bit.provider';
+import { ExtensionDataList } from '../../consumer/config/extension-data';
 
-import { CompileExt } from '../compile';
-import { WatchExt } from '../watch';
-import { TestExt } from '../test';
-import { ComponentGraphExt } from '../graph';
-import { CreateExt } from '../create';
-import { FlowsExt } from '../flows';
-import { InsightsExt } from '../insights';
-import { PackExt } from '../pack';
+const manifests = Object.values(manifestsMap);
+
+export function registerCoreExtensions() {
+  const allCoreExtensionsNames = Object.keys(manifestsMap);
+  ExtensionDataList.registerManyCoreExtensionNames(allCoreExtensionsNames);
+}
 
 export default {
-  name: 'Bit',
-  dependencies: [
-    WorkspaceExt,
-    ScopeExt,
-    FlowsExt,
-    PackExt,
-    CompileExt,
-    WatchExt,
-    TestExt,
-    ComposerExt,
-    InstallExt,
-    CreateExt,
-    InsightsExt,
-    ComponentGraphExt
-  ],
+  name: 'bit',
+  dependencies: manifests,
   provider: provideBit
 } as ExtensionManifest;

@@ -1,4 +1,5 @@
 import Config from './config';
+import { Store } from './store';
 import ComponentFS from './component-fs';
 import ConsumerComponent from '../../consumer/component';
 
@@ -13,6 +14,11 @@ export default class State {
      * in-memory representation of the component current filesystem.
      */
     readonly filesystem: ComponentFS,
+
+    /**
+     * metadata store of the component
+     */
+    readonly store: Store,
 
     /**
      * dependency graph of the component current. ideally package dependencies would be also placed here.
@@ -34,8 +40,9 @@ export default class State {
 
   static fromLegacy(consumerComponent: ConsumerComponent) {
     return new State(
-      new Config(consumerComponent.mainFile, consumerComponent.extensions),
+      new Config(consumerComponent.extensions),
       ComponentFS.fromVinyls(consumerComponent.files),
+      Store.fromArray([]),
       consumerComponent.dependencies,
       consumerComponent
     );

@@ -15,6 +15,7 @@ import { DEPENDENCIES_FIELDS } from '../constants';
 import GeneralError from '../error/general-error';
 import { PathLinux } from '../utils/path';
 import { ExtensionDataEntry, ExtensionDataList } from '../consumer/config/extension-data';
+import { SchemaName } from '../consumer/component/component-schema';
 
 /**
  * make sure a Version instance is correct. throw an exceptions if it is not.
@@ -98,17 +99,16 @@ export default function validateVersionInstance(version: Version): void {
       });
     });
   };
-  const validateFile = (file, isDist = false) => {
-    const field = isDist ? 'dist-file' : 'file';
+  const validateFile = (file, field: 'file' | 'dist-file' | 'artifact') => {
     validateType(message, file, field, 'object');
     if (!isValidPath(file.relativePath)) {
       throw new VersionInvalid(`${message}, the ${field} ${file.relativePath} is invalid`);
     }
-    if (!file.name) {
+    if (!file.name && field !== 'artifact') {
       throw new VersionInvalid(`${message}, the ${field} ${file.relativePath} is missing the name attribute`);
     }
     if (!file.file) throw new VersionInvalid(`${message}, the ${field} ${file.relativePath} is missing the hash`);
-    validateType(message, file.name, `${field}.name`, 'string');
+    if (file.name) validateType(message, file.name, `${field}.name`, 'string');
     validateType(message, file.file, `${field}.file`, 'object');
     validateType(message, file.file.hash, `${field}.file.hash`, 'string');
   };
@@ -117,6 +117,7 @@ export default function validateVersionInstance(version: Version): void {
     if (extension.extensionId) {
       validateBitId(extension.extensionId, `extensions.${extension.extensionId.toString()}`, true, false);
     }
+    extension.artifacts.map(artifact => validateFile(artifact, 'artifact'));
   };
 
   const _validateExtensions = (extensions: ExtensionDataList) => {
@@ -134,7 +135,7 @@ export default function validateVersionInstance(version: Version): void {
   validateType(message, version.files, 'files', 'array');
   const filesPaths: PathLinux[] = [];
   version.files.forEach(file => {
-    validateFile(file);
+    validateFile(file, 'file');
     filesPaths.push(file.relativePath);
     if (file.relativePath === version.mainFile) foundMainFile = true;
   });
@@ -162,7 +163,7 @@ export default function validateVersionInstance(version: Version): void {
   if (version.dists && version.dists.length) {
     validateType(message, version.dists, 'dist', 'array');
     version.dists.forEach(file => {
-      validateFile(file, true);
+      validateFile(file, 'dist-file');
     });
   } else if (version.mainDistFile) {
     throw new VersionInvalid(`${message} the mainDistFile cannot be set when the dists are empty`);
@@ -269,4 +270,44 @@ ${duplicationStr}`);
       );
     }
   });
+  const schema = version.schema || SchemaName.Legacy;
+  if (!version.isLegacy) {
+    const fieldsForSchemaCheck = ['compiler', 'tester', 'dists', 'mainDistFile'];
+    const fieldsForSchemaCheckNotEmpty = [
+      'customResolvedPaths',
+      'compilerPackageDependencies',
+      'testerPackageDependencies'
+    ];
+    fieldsForSchemaCheck.forEach(field => {
+      if (version[field]) {
+        throw new VersionInvalid(`${message}, the ${field} field is not permitted according to schema "${schema}"`);
+      }
+    });
+    fieldsForSchemaCheckNotEmpty.forEach(field => {
+      if (version[field] && !R.isEmpty(version[field])) {
+        throw new VersionInvalid(
+          `${message}, the ${field} field is cannot have values according to schema "${schema}"`
+        );
+      }
+    });
+    ['dependencies', 'devDependencies'].forEach(dependenciesField => {
+      const deps: Dependencies = version[dependenciesField];
+      deps.dependencies.forEach(dep => {
+        if (dep.relativePaths.length) {
+          throw new VersionInvalid(
+            `${message}, the ${dependenciesField} should not have relativePaths according to schema "${schema}"`
+          );
+        }
+      });
+    });
+  }
+  if (version.isLegacy) {
+    // mainly to make sure that all Harmony components are saved with schema
+    // if they don't have schema, they'll fail on this test
+    if (version.extensions && version.extensions.some(e => e.artifacts && e.artifacts.length)) {
+      throw new VersionInvalid(
+        `${message}, the extensions field should not have "artifacts" prop according to schema "${schema}"`
+      );
+    }
+  }
 }

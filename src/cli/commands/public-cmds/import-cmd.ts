@@ -1,6 +1,6 @@
 import R from 'ramda';
 import chalk from 'chalk';
-import Command, { CommandOptions } from '../../command';
+import { LegacyCommand, CommandOptions } from '../../legacy-command';
 import { importAction } from '../../../api/consumer';
 import { immutableUnshift } from '../../../utils';
 import { formatPlainComponentItem, formatPlainComponentItemWithVersions } from '../../chalk-box';
@@ -13,7 +13,7 @@ import { BASE_DOCS_DOMAIN, WILDCARD_HELP } from '../../../constants';
 import { MergeOptions } from '../../../consumer/versions-ops/merge-version/merge-version';
 import { MergeStrategy } from '../../../consumer/versions-ops/merge-version/merge-version';
 
-export default class Import extends Command {
+export default class Import implements LegacyCommand {
   name = 'import [ids...]';
   description = `import components into your current workspace.
   https://${BASE_DOCS_DOMAIN}/docs/sourcing-components
@@ -34,11 +34,7 @@ export default class Import extends Command {
     ['v', 'verbose', 'showing verbose output for inspection'],
     ['j', 'json', 'return the output as JSON'],
     ['', 'ignore-dist', "skip writing the component's build files during import"],
-    [
-      '',
-      'conf [path]',
-      'write the configuration file (bit.json) and the envs configuration files (use --conf without path to write to the default dir)'
-    ],
+    ['', 'conf', 'write the configuration file (component.json) of the component (harmony components only)'],
     [
       '',
       'skip-npm-install',

@@ -1,6 +1,5 @@
 // covers also ci-update command
 
-import * as path from 'path';
 import { expect } from 'chai';
 import Helper from '../../src/e2e-helper/e2e-helper';
 import * as fixtures from '../../src/fixtures/fixtures';
@@ -56,7 +55,7 @@ describe('bit test command', function() {
       helper.npm.installNpmPackage('chai', '4.1.2');
       helper.fs.createFile('utils', 'is-type.js', fixtures.isType);
       helper.fs.createFile('utils', 'is-type.spec.js', fixtures.isTypeSpec(true));
-      helper.command.addComponentAllowFiles('utils/is-type.js -t utils/is-type.spec.js', { i: 'utils/is-type' });
+      helper.command.addComponent('utils/is-type.js -t utils/is-type.spec.js', { i: 'utils/is-type' });
     });
     it('should indicate that testes are passed', () => {
       const output = helper.command.testComponent('utils/is-type');
@@ -69,7 +68,7 @@ describe('bit test command', function() {
       helper.scopeHelper.getClonedLocalScope(clonedScopePath);
       helper.fs.createFile('utils', 'is-type.js', fixtures.isType);
       helper.fs.createFile('utils', 'is-type.spec.js', fixtures.isTypeSpec(false));
-      helper.command.addComponentAllowFiles('utils/is-type.js -t utils/is-type.spec.js', { i: 'utils/is-type' });
+      helper.command.addComponent('utils/is-type.js -t utils/is-type.spec.js', { i: 'utils/is-type' });
     });
     it('should indicate that tests are failed', () => {
       let output;
@@ -102,7 +101,7 @@ describe('bit test command', function() {
       helper.scopeHelper.getClonedLocalScope(clonedScopePath);
       helper.fs.createFile('utils', 'is-type.js', fixtures.isType);
       helper.fs.createFile('utils', 'is-type.spec.js', "throw new Error('exception occurred with this spec file');");
-      helper.command.addComponentAllowFiles('utils/is-type.js', { i: 'utils/is-type', t: 'utils/is-type.spec.js' });
+      helper.command.addComponent('utils/is-type.js', { i: 'utils/is-type', t: 'utils/is-type.spec.js' });
     });
     it('should print the exception message when running bit test --verbose', () => {
       let output;
@@ -176,7 +175,7 @@ describe('bit test command', function() {
       helper.fs.createFile('utils', 'is-type.js', fixtures.isType);
       helper.fs.createFile('utils', 'is-type.spec.js', fixtures.isTypeSpec(true));
       helper.fs.createFile('utils', 'is-type-before-fail.spec.js', isTypeBeforeFailSpecFixture);
-      helper.command.addComponentAllowFiles('utils/is-type.js', {
+      helper.command.addComponent('utils/is-type.js', {
         i: 'utils/is-type',
         t: 'utils/is-type.spec.js,utils/is-type-before-fail.spec.js'
       });
@@ -224,7 +223,7 @@ describe('bit test command', function() {
       helper.scopeHelper.getClonedLocalScope(clonedScopePath);
       helper.fs.createFile('utils', 'is-type.js', fixtures.isType);
       helper.fs.createFile('utils', 'is-type.spec.js', fixtures.isTypeSpec(true));
-      helper.command.addComponentAllowFiles('utils/is-type.js -t utils/is-type.spec.js', { i: 'utils/is-type' });
+      helper.command.addComponent('utils/is-type.js -t utils/is-type.spec.js', { i: 'utils/is-type' });
       helper.npm.installNpmPackage('chai', '4.1.2');
       helper.command.tagComponent('utils/is-type');
 
@@ -288,18 +287,6 @@ describe('bit test command', function() {
         expect(output).to.have.string('npm WARN');
       });
     });
-    describe('import with --conf', () => {
-      before(() => {
-        helper.scopeHelper.getClonedLocalScope(localScope);
-        helper.command.importComponent('utils/is-type --conf');
-      });
-      it('should save the tester with id only without files and config because it does not use them', () => {
-        const bitJson = helper.bitJson.read(path.join(helper.scopes.localPath, 'components/utils/is-type'));
-        expect(bitJson).to.have.property('env');
-        expect(bitJson.env).to.have.property('tester');
-        expect(bitJson.env.tester).to.have.string('testers/mocha');
-      });
-    });
   });
   describe('bit component with es6 syntax without building before testing', () => {
     const testWithEs6 = `import {expect} from 'chai';
@@ -316,7 +303,7 @@ describe('bit test command', function() {
       helper.npm.installNpmPackage('chai', '4.1.2');
       helper.fs.createFile('utils', 'is-type.js', fixtures.isType);
       helper.fs.createFile('utils', 'is-type.spec.js', testWithEs6);
-      helper.command.addComponentAllowFiles('utils/is-type.js -t utils/is-type.spec.js', { i: 'utils/is-type' });
+      helper.command.addComponent('utils/is-type.js -t utils/is-type.spec.js', { i: 'utils/is-type' });
     });
     it('Should not be able to test without building first', () => {
       let output;
@@ -365,7 +352,7 @@ describe('bit test command', function() {
       helper.scopeHelper.getClonedLocalScope(clonedScopePath);
       helper.fs.createFile('utils', 'is-type.js', fixtures.isType);
       helper.fs.createFile('utils', 'is-type.spec.js', fixtures.isTypeSpec(true));
-      helper.command.addComponentAllowFiles('utils/is-type.js', { t: 'utils/is-type.spec.js', i: 'utils/is-type' });
+      helper.command.addComponent('utils/is-type.js', { t: 'utils/is-type.spec.js', i: 'utils/is-type' });
       helper.npm.installNpmPackage('chai', '4.1.2');
       helper.command.tagComponent('utils/is-type');
 
@@ -382,7 +369,7 @@ describe('bit test command', function() {
       // Set authored component
       helper.fixtures.createComponentBarFoo();
       helper.fs.createFile('bar', 'foo.spec.js', fixtures.passTest);
-      helper.command.addComponentAllowFiles('bar/foo.js', { t: 'bar/foo.spec.js', i: 'bar/foo' });
+      helper.command.addComponent('bar/foo.js', { t: 'bar/foo.spec.js', i: 'bar/foo' });
       helper.fixtures.tagComponentBarFoo();
     });
     it('should show there is nothing to test', () => {

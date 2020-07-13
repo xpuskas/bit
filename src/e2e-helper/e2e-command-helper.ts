@@ -11,7 +11,7 @@ import runInteractive from '../interactive/utils/run-interactive-cmd';
 import { InteractiveInputs } from '../interactive/utils/run-interactive-cmd';
 import ScopesData from './e2e-scopes';
 import { CURRENT_UPSTREAM } from '../constants';
-import { ENV_VAR_FEATURE_TOGGLE, LEGACY_SHARED_DIR_FEATURE } from '../api/consumer/lib/feature-toggle';
+import { ENV_VAR_FEATURE_TOGGLE } from '../api/consumer/lib/feature-toggle';
 
 const DEFAULT_DEFAULT_INTERVAL_BETWEEN_INPUTS = 200;
 
@@ -102,23 +102,6 @@ export default class CommandHelper {
     const result = this.runCmd(`bit cat-component ${id} --json`, cwd);
     return parse ? JSON.parse(result) : result;
   }
-  /**
-   * add component as legacy-mode.
-   * rootDir is not set for authored. same as it was on versions < 14.8.0.
-   * useful for tests that involve originallySharedDir logic. that's the only way to test them.
-   */
-  addComponentLegacy(filePaths: string, options: Record<string, any> = {}, cwd: string = this.scopes.localPath) {
-    const value = Object.keys(options)
-      .map(key => `-${key} ${options[key]}`)
-      .join(' ');
-    return this.runCmd(`bit add ${filePaths} ${value} --allow-files`, cwd, undefined, LEGACY_SHARED_DIR_FEATURE);
-  }
-  addComponentAllowFiles(filePaths: string, options: Record<string, any> = {}, cwd: string = this.scopes.localPath) {
-    const value = Object.keys(options)
-      .map(key => `-${key} ${options[key]}`)
-      .join(' ');
-    return this.runCmd(`bit add ${filePaths} ${value} --allow-files`, cwd);
-  }
   addComponent(filePaths: string, options: Record<string, any> | string = {}, cwd: string = this.scopes.localPath) {
     const value =
       typeof options === 'string'
@@ -150,32 +133,13 @@ export default class CommandHelper {
     return this.runCmd(`bit undeprecate ${id} ${flags}`);
   }
   tagComponent(id: string, tagMsg = 'tag-message', options = '') {
-    return this.runCmd(`bit tag ${id} -m ${tagMsg} ${options} --allow-relative-paths`);
-  }
-  tagComponentLegacy(id: string, tagMsg = 'tag-message', options = '') {
-    return this.runCmd(
-      `bit tag ${id} -m ${tagMsg} ${options} --allow-relative-paths --allow-files`,
-      undefined,
-      undefined,
-      LEGACY_SHARED_DIR_FEATURE
-    );
+    return this.runCmd(`bit tag ${id} -m ${tagMsg} ${options}`);
   }
   tagWithoutMessage(id: string, version = '', options = '') {
-    return this.runCmd(`bit tag ${id} ${version} ${options} --allow-relative-paths`);
+    return this.runCmd(`bit tag ${id} ${version} ${options}`);
   }
-  tagAllComponentsLegacy(options = '', version = '', assertTagged = true) {
-    const result = this.runCmd(
-      `bit tag -a ${version} ${options} --allow-relative-paths --allow-files`,
-      undefined,
-      undefined,
-      LEGACY_SHARED_DIR_FEATURE
-    );
-    if (assertTagged) expect(result).to.not.have.string(NOTHING_TO_TAG_MSG);
-    return result;
-  }
-  // @todo: change to tagAllComponentsLegacy
   tagAllComponents(options = '', version = '', assertTagged = true) {
-    const result = this.runCmd(`bit tag -a ${version} ${options} --allow-relative-paths --allow-files`);
+    const result = this.runCmd(`bit tag -a ${version} ${options}`);
     if (assertTagged) expect(result).to.not.have.string(NOTHING_TO_TAG_MSG);
     return result;
   }
@@ -190,15 +154,7 @@ export default class CommandHelper {
     return this.tagAllComponentsNew(options, version, assertTagged);
   }
   tagScope(version: string, message = 'tag-message', options = '') {
-    return this.runCmd(`bit tag -s ${version} -m ${message} ${options} --allow-relative-paths`);
-  }
-  tagScopeLegacy(version: string, message = 'tag-message', options = '') {
-    return this.runCmd(
-      `bit tag -s ${version} -m ${message} ${options} --allow-relative-paths --allow-files`,
-      undefined,
-      undefined,
-      LEGACY_SHARED_DIR_FEATURE
-    );
+    return this.runCmd(`bit tag -s ${version} -m ${message} ${options}`);
   }
   untag(id: string) {
     return this.runCmd(`bit untag ${id}`);
@@ -261,6 +217,20 @@ export default class CommandHelper {
     return this.runCmd(`bit isolate ${id} --use-capsule --directory ${capsuleDir}`);
   }
 
+  /**
+   * returns the capsule dir
+   */
+  createCapsuleHarmony(id: string): string {
+    const output = this.runCmd(`bit capsule-create ${id} --json`);
+    const capsules = JSON.parse(output);
+    const capsule = capsules.find(c => c.id === id);
+    if (!capsule)
+      throw new Error(
+        `createCapsuleHarmony unable to find capsule for ${id}, inside ${capsules.map(c => c.id).join(', ')}`
+      );
+    return capsule.path;
+  }
+
   getCapsuleOfComponent(id: string) {
     const capsulesJson = this.runCmd('bit capsule-list -j');
     const capsules = JSON.parse(capsulesJson);
@@ -308,6 +278,13 @@ export default class CommandHelper {
   expectStatusToBeClean() {
     const statusJson = this.statusJson();
     Object.keys(statusJson).forEach(key => {
+      expect(statusJson[key], `status.${key} should be empty`).to.have.lengthOf(0);
+    });
+  }
+
+  expectStatusToNotHaveIssues() {
+    const statusJson = this.statusJson();
+    ['componentsWithMissingDeps', 'invalidComponents'].forEach(key => {
       expect(statusJson[key], `status.${key} should be empty`).to.have.lengthOf(0);
     });
   }
@@ -378,6 +355,13 @@ export default class CommandHelper {
   }
 
   packComponent(id: string, options: Record<string, any>, extract = false) {
+    const defaultOptions = {
+      o: '',
+      p: '',
+      k: '',
+      j: ''
+    };
+    options = { ...defaultOptions, ...options };
     const value = Object.keys(options)
       .map(key => `-${key} ${options[key]}`)
       .join(' ');
@@ -405,15 +389,14 @@ export default class CommandHelper {
     }
     return result;
   }
-
-  ejectConf(id = 'bar/foo', options?: Record<string, any>) {
-    const value = options
-      ? Object.keys(options) // $FlowFixMe
-          .map(key => `-${key} ${options[key]}`)
-          .join(' ')
-      : '';
-    return this.runCmd(`bit eject-conf ${id} ${value}`);
+  publish(id: string, flags = '') {
+    return this.runCmd(`bit publish ${id} ${flags}`);
   }
+  ejectConf(id = 'bar/foo', options?: Record<string, any>) {
+    const parsedOpts = this.parseOptions(options);
+    return this.runCmd(`bit eject-conf ${id} ${parsedOpts}`);
+  }
+
   injectConf(id = 'bar/foo', options: Record<string, any> | null | undefined) {
     const value = options
       ? Object.keys(options) // $FlowFixMe
@@ -442,7 +425,8 @@ export default class CommandHelper {
     return JSON.parse(result);
   }
 
-  parseOptions(options: Record<string, any>): string {
+  parseOptions(options?: Record<string, any>): string {
+    if (!options) return ' ';
     const value = Object.keys(options)
       .map(key => {
         const keyStr = key.length === 1 ? `-${key}` : `--${key}`;

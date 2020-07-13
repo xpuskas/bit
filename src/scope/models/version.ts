@@ -20,6 +20,7 @@ import validateVersionInstance from '../version-validator';
 import { ComponentOverridesData } from '../../consumer/config/component-overrides';
 import { EnvPackages } from '../../legacy-extensions/env-extension';
 import { ExtensionDataList, ExtensionDataEntry } from '../../consumer/config/extension-data';
+import { SchemaFeature, isSchemaSupport, SchemaName } from '../../consumer/component/component-schema';
 
 type CiProps = {
   error: Record<string, any>;
@@ -35,6 +36,11 @@ export type SourceFileModel = {
 };
 
 export type DistFileModel = SourceFileModel;
+
+export type ArtifactFileModel = {
+  relativePath: PathLinux;
+  file: Ref;
+};
 
 export type Log = {
   message: string;
@@ -70,7 +76,7 @@ export type VersionProps = {
   compilerPackageDependencies?: EnvPackages;
   testerPackageDependencies?: EnvPackages;
   bindingPrefix?: string;
-  ignoreSharedDir?: boolean;
+  schema?: string;
   customResolvedPaths?: CustomResolvedPath[];
   overrides: ComponentOverridesData;
   packageJsonChangedProps?: Record<string, any>;
@@ -107,7 +113,7 @@ export default class Version extends BitObject {
   compilerPackageDependencies: EnvPackages;
   testerPackageDependencies: EnvPackages;
   bindingPrefix: string | undefined;
-  ignoreSharedDir: boolean | undefined;
+  schema: string | undefined;
   customResolvedPaths: CustomResolvedPath[] | undefined;
   overrides: ComponentOverridesData;
   packageJsonChangedProps: Record<string, any>;
@@ -135,7 +141,7 @@ export default class Version extends BitObject {
     this.compilerPackageDependencies = props.compilerPackageDependencies || {};
     this.testerPackageDependencies = props.testerPackageDependencies || {};
     this.bindingPrefix = props.bindingPrefix;
-    this.ignoreSharedDir = props.ignoreSharedDir;
+    this.schema = props.schema;
     this.customResolvedPaths = props.customResolvedPaths;
     this.overrides = props.overrides || {};
     this.packageJsonChangedProps = props.packageJsonChangedProps || {};
@@ -272,7 +278,8 @@ export default class Version extends BitObject {
     };
     const files = extractRefsFromFiles(this.files);
     const dists = extractRefsFromFiles(this.dists);
-    return [...dists, ...files].filter(ref => ref);
+    const artifacts = extractRefsFromFiles(R.flatten(this.extensions.map(e => e.artifacts)));
+    return [...dists, ...files, ...artifacts].filter(ref => ref);
   }
 
   toObject() {
@@ -318,7 +325,7 @@ export default class Version extends BitObject {
         mainDistFile: this.mainDistFile,
         compiler: this.compiler ? _convertEnvToObject(this.compiler) : null,
         bindingPrefix: this.bindingPrefix || DEFAULT_BINDINGS_PREFIX,
-        ignoreSharedDir: this.ignoreSharedDir,
+        schema: this.schema,
         tester: this.tester ? _convertEnvToObject(this.tester) : null,
         log: {
           message: this.log.message,
@@ -334,12 +341,16 @@ export default class Version extends BitObject {
         flattenedDependencies: this.flattenedDependencies.map(dep => dep.serialize()),
         flattenedDevDependencies: this.flattenedDevDependencies.map(dep => dep.serialize()),
         extensions: this.extensions.map(ext => {
-          const extensionClone = R.clone(ext);
+          const extensionClone = ext.clone();
           if (extensionClone.extensionId) {
             // TODO: fix the types of extensions. after this it should be an object not an object id
             // @ts-ignore
             extensionClone.extensionId = ext.extensionId.serialize();
           }
+          extensionClone.artifacts = extensionClone.artifacts.map(file => ({
+            file: file.file.toString(),
+            relativePath: file.relativePath
+          }));
           return extensionClone;
         }),
         packageDependencies: this.packageDependencies,
@@ -380,7 +391,7 @@ export default class Version extends BitObject {
       files,
       compiler,
       bindingPrefix,
-      ignoreSharedDir,
+      schema,
       tester,
       log,
       docs,
@@ -452,12 +463,17 @@ export default class Version extends BitObject {
             const entry = new ExtensionDataEntry(undefined, extensionId, undefined, extension.config, extension.data);
             return entry;
           }
+          const artifacts = (extension.artifacts || []).map(a => ({
+            file: Ref.from(a.file),
+            relativePath: a.relativePath
+          }));
           const entry = new ExtensionDataEntry(
             extension.id,
             undefined,
             extension.name,
             extension.config,
-            extension.data
+            extension.data,
+            artifacts
           );
           return entry;
         });
@@ -473,7 +489,7 @@ export default class Version extends BitObject {
       mainDistFile,
       compiler: compiler ? parseEnv(compiler) : null,
       bindingPrefix: bindingPrefix || null,
-      ignoreSharedDir: ignoreSharedDir || undefined,
+      schema: schema || undefined,
       tester: tester ? parseEnv(tester) : null,
       log: {
         message: log.message,
@@ -520,6 +536,7 @@ export default class Version extends BitObject {
     flattenedDevDependencies,
     message,
     specsResults,
+    extensions,
     username,
     email
   }: {
@@ -531,6 +548,7 @@ export default class Version extends BitObject {
     dists: Array<DistFileModel> | undefined;
     mainDistFile: PathLinuxRelative;
     specsResults: Results | undefined;
+    extensions: ExtensionDataList;
     username: string | undefined;
     email: string | undefined;
   }) {
@@ -545,6 +563,19 @@ export default class Version extends BitObject {
 
     const compiler = component.compiler ? component.compiler.toModelObject() : undefined;
     const tester = component.tester ? component.tester.toModelObject() : undefined;
+
+    const parseComponentExtensions = () => {
+      const extensionsCloned = extensions;
+      extensionsCloned.forEach(extensionDataEntry => {
+        extensionDataEntry.artifacts = extensionDataEntry.artifacts.map(artifact => {
+          return {
+            file: artifact.file.hash(),
+            relativePath: artifact.relativePath
+          };
+        });
+      });
+      return extensionsCloned;
+    };
 
     const compilerDynamicPakageDependencies = component.compiler
       ? component.compiler.dynamicPackageDependencies
@@ -582,13 +613,21 @@ export default class Version extends BitObject {
       ),
       flattenedDependencies,
       flattenedDevDependencies,
-      ignoreSharedDir: component.ignoreSharedDir,
+      schema: component.schema,
       customResolvedPaths: component.customResolvedPaths,
       overrides: component.overrides.componentOverridesData,
       // @ts-ignore AUTO-ADDED-AFTER-MIGRATION-PLEASE-FIX!
       packageJsonChangedProps: component.packageJsonChangedProps,
-      extensions: component.extensions
+      extensions: parseComponentExtensions()
     });
+  }
+
+  get ignoreSharedDir(): boolean {
+    return !isSchemaSupport(SchemaFeature.sharedDir, this.schema);
+  }
+
+  get isLegacy(): boolean {
+    return !this.schema || this.schema === SchemaName.Legacy;
   }
 
   setSpecsResults(specsResults: Results | undefined) {

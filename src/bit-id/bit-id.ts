@@ -121,13 +121,6 @@ export default class BitId {
     return obj;
   }
 
-  toObject() {
-    const key = this.scope ? [this.scope, this.name].join('/') : this.name;
-    const value = this.version;
-
-    return { [key]: value };
-  }
-
   toFullPath(): PathOsBased {
     if (!this.scope || !this.version) {
       throw new Error('BitId.toFullPath is unable to generate a path without a scope or a version');
@@ -141,7 +134,15 @@ export default class BitId {
    * @return {string} id - id without version
    */
   static getStringWithoutVersion(id: string): string {
-    return id.split(VERSION_DELIMITER)[0];
+    const splitted = id.split(VERSION_DELIMITER);
+    let res = splitted[0];
+    // the delimiter is @. now with the new owner prefix
+    // many times the id starts with the @ sign as part of the @owner prefix
+    // do not treat this @ at the beginning as the version delimiter
+    if (id.startsWith(VERSION_DELIMITER)) {
+      res = `${VERSION_DELIMITER}${splitted[1]}`;
+    }
+    return res;
   }
 
   static getVersionOnlyFromString(id: string): string {
@@ -161,7 +162,7 @@ export default class BitId {
     const getScopeAndName = () => {
       if (hasScope) {
         const delimiterIndex = id.indexOf('/');
-        if (delimiterIndex < 0) throw new InvalidBitId();
+        if (delimiterIndex < 0) throw new InvalidBitId(id);
         const scope = id.substring(0, delimiterIndex);
         const name = id.substring(delimiterIndex + 1);
         return {
@@ -232,7 +233,7 @@ export default class BitId {
       });
     }
 
-    throw new InvalidBitId();
+    throw new InvalidBitId(id);
   }
 
   /**

@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { ReleaseType } from 'semver';
-import Command, { CommandOptions } from '../../command';
+import { LegacyCommand, CommandOptions } from '../../legacy-command';
 import { tagAction, tagAllAction } from '../../../api/consumer';
 import { TagResults } from '../../../api/consumer/lib/tag';
 import { isString } from '../../../utils';
@@ -11,7 +11,7 @@ import hasWildcard from '../../../utils/string/has-wildcard';
 export const NOTHING_TO_TAG_MSG = 'nothing to tag';
 export const AUTO_TAGGED_MSG = 'auto-tagged dependents';
 
-export default class Tag extends Command {
+export default class Tag implements LegacyCommand {
   name = 'tag [id] [version]';
   description = `record component changes and lock versions.
   https://${BASE_DOCS_DOMAIN}/docs/tag-component-version
@@ -22,8 +22,8 @@ export default class Tag extends Command {
     ['a', 'all [version]', 'tag all new and modified components'],
     ['s', 'scope <version>', 'tag all components of the current scope'],
     ['p', 'patch', 'increment the patch version number'],
-    ['mi', 'minor', 'increment the minor version number'],
-    ['ma', 'major', 'increment the major version number'],
+    ['', 'minor', 'increment the minor version number'],
+    ['', 'major', 'increment the major version number'],
     ['f', 'force', 'force-tag even if tests are failing and even when component has not changed'],
     ['v', 'verbose', 'show specs output on failure'],
     ['', 'ignore-missing-dependencies', 'DEPRECATED. use --ignore-unresolved-dependencies instead'],
@@ -51,8 +51,6 @@ export default class Tag extends Command {
       ignoreMissingDependencies = false,
       ignoreUnresolvedDependencies = false,
       ignoreNewestVersion = false,
-      allowRelativePaths = false,
-      allowFiles = false,
       skipTests = false,
       skipAutoTag = false,
       scope
@@ -67,8 +65,6 @@ export default class Tag extends Command {
       ignoreMissingDependencies?: boolean;
       ignoreUnresolvedDependencies?: boolean;
       ignoreNewestVersion?: boolean;
-      allowRelativePaths: boolean;
-      allowFiles: boolean;
       skipTests?: boolean;
       skipAutoTag?: boolean;
       scope?: string;
@@ -113,8 +109,6 @@ export default class Tag extends Command {
       verbose,
       ignoreUnresolvedDependencies,
       ignoreNewestVersion,
-      allowRelativePaths,
-      allowFiles,
       skipTests,
       skipAutoTag
     };

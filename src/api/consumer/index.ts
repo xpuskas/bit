@@ -24,7 +24,6 @@ import link from './lib/link';
 import checkout from './lib/checkout';
 import merge from './lib/merge';
 import diff from './lib//diff';
-import ejectConf from './lib/eject-conf';
 import injectConf from './lib/inject-conf';
 import migrate from './lib/migrate';
 import ejectAction from './lib/eject';
@@ -32,7 +31,6 @@ import dependencyStatus from './lib/dependency_status';
 import login from './lib/login';
 import show from './lib/show';
 import paintGraph from './lib/paint-graph';
-import capsuleIsolate from './lib/capsule-isolate';
 
 export {
   init,
@@ -67,12 +65,10 @@ export {
   checkout,
   merge,
   diff,
-  ejectConf,
   injectConf,
   migrate,
   ejectAction,
   login,
   show,
-  paintGraph,
-  capsuleIsolate
+  paintGraph
 };

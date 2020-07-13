@@ -89,7 +89,7 @@ import ExtensionInitError from '../legacy-extensions/exceptions/extension-init-e
 import MainFileRemoved from '../consumer/component/exceptions/main-file-removed';
 import EjectBoundToWorkspace from '../consumer/component/exceptions/eject-bound-to-workspace';
 import EjectNoDir from '../consumer/component-ops/exceptions/eject-no-dir';
-import { DEBUG_LOG, BASE_DOCS_DOMAIN } from '../constants';
+import { DEBUG_LOG, BASE_DOCS_DOMAIN, IMPORT_PENDING_MSG } from '../constants';
 import InjectNonEjected from '../consumer/component/exceptions/inject-non-ejected';
 import ExtensionSchemaError from '../legacy-extensions/exceptions/extension-schema-error';
 import GitNotFound from '../utils/git/exceptions/git-not-found';
@@ -100,11 +100,12 @@ import MissingDiagnosisName from '../api/consumer/lib/exceptions/missing-diagnos
 import RemoteResolverError from '../scope/network/exceptions/remote-resolver-error';
 import ExportAnotherOwnerPrivate from '../scope/network/exceptions/export-another-owner-private';
 import ComponentsPendingImport from '../consumer/component-ops/exceptions/components-pending-import';
-import { importPendingMsg } from './commands/public-cmds/status-cmd';
 import { AddingIndividualFiles } from '../consumer/component-ops/add-components/exceptions/adding-individual-files';
 import IncorrectRootDir from '../consumer/component/exceptions/incorrect-root-dir';
 import OutsideRootDir from '../consumer/bit-map/exceptions/outside-root-dir';
 import { FailedLoadForTag } from '../consumer/component/exceptions/failed-load-for-tag';
+import { PaperError } from '../extensions/cli';
+import FlagHarmonyOnly from '../api/consumer/lib/exceptions/flag-harmony-only';
 
 const reportIssueToGithubMsg =
   'This error should have never happened. Please report this issue on Github https://github.com/teambit/bit/issues';
@@ -146,8 +147,7 @@ const errorsMap: Array<[Class<Error>, (err: Class<Error>) => string]> = [
   ],
   [
     AddingIndividualFiles,
-    err =>
-      `error: adding individual files is blocked ("${err.file}"), and only directories can be added. To force adding files use --allow-files flag`
+    err => `error: adding individual files is blocked ("${err.file}"), and only directories can be added`
   ],
   [ExtensionFileNotFound, err => `file "${err.path}" was not found`],
   [
@@ -160,13 +160,16 @@ const errorsMap: Array<[Class<Error>, (err: Class<Error>) => string]> = [
     () => 'error: remote scope protocol is not supported, please use: `ssh://`, `file://` or `bit://`'
   ],
   [RemoteScopeNotFound, err => `error: remote scope "${chalk.bold(err.name)}" was not found.`],
-  [InvalidBitId, () => 'error: component ID is invalid, please use the following format: [scope]/<name>'],
+  [
+    InvalidBitId,
+    err => `error: component ID "${chalk.bold(err.id)}" is invalid, please use the following format: [scope]/<name>`
+  ],
   [
     EjectBoundToWorkspace,
     () => 'error: could not eject config for authored component which are bound to the workspace configuration'
   ],
   [InjectNonEjected, () => 'error: could not inject config for already injected component'],
-  [ComponentsPendingImport, () => importPendingMsg],
+  [ComponentsPendingImport, () => IMPORT_PENDING_MSG],
   // TODO: improve error
   [
     EjectNoDir,
@@ -277,8 +280,7 @@ Original Error: ${err.message}`
   [
     IncorrectRootDir,
     err => `error: a component ${chalk.bold(err.id)} uses relative-paths (${err.importStatement}).
-please replace to module paths (e.g. @bit/component-name) or use "bit link --rewire" to auto-replace all occurrences.
-an unrecommended alternative is running "bit add" with the id and "--allow-relative-paths" flag to enable relative-paths`
+please replace to module paths (e.g. @bit/component-name) or use "bit link --rewire" to auto-replace all occurrences.`
   ],
   [
     ScopeJsonNotFound,
@@ -411,6 +413,7 @@ please use "bit remove" to delete the component or "bit add" with "--main" and "
     err => `error: file or directory "${chalk.bold(err.path)}" is located outside of the workspace.`
   ],
   [ConfigKeyNotFound, err => `unable to find a key "${chalk.bold(err.key)}" in your bit config`],
+  [FlagHarmonyOnly, err => `the flag: "${chalk.bold(err.flag)}" allowed only on harmony workspace`],
   [WriteToNpmrcError, err => `unable to add @bit as a scoped registry at "${chalk.bold(err.path)}"`],
   [PathToNpmrcNotExist, err => `error: file or directory "${chalk.bold(err.path)}" was not found.`],
 
@@ -607,7 +610,7 @@ function getExternalErrorsMessageAndStack(errors: Error[]): string {
  * reason why we don't check (err instanceof AbstractError) is that it could be thrown from a fork,
  * in which case, it loses its class and has only the fields.
  */
-function sendToAnalyticsAndSentry(err: Error) {
+export function sendToAnalyticsAndSentry(err: Error) {
   const possiblyHashedError = hashErrorIfNeeded(err);
   // @ts-ignore AUTO-ADDED-AFTER-MIGRATION-PLEASE-FIX!
   // @ts-ignore AUTO-ADDED-AFTER-MIGRATION-PLEASE-FIX!
@@ -630,16 +633,25 @@ function handleNonBitCustomErrors(err: Error): string {
   return chalk.red(err.message || err);
 }
 
-export default (err: Error): string | undefined => {
+export default (err: Error): { message: string; error: Error } => {
   const errorDefinition = findErrorDefinition(err);
+  const getErrMsg = (): string => {
+    if (err instanceof PaperError) {
+      return err.report();
+    }
+    if (!errorDefinition) {
+      return handleNonBitCustomErrors(err);
+    }
+    const func = getErrorFunc(errorDefinition);
+    const errorMessage = getErrorMessage(err, func) || 'unknown error';
+    err.message = errorMessage;
+    return errorMessage;
+  };
   sendToAnalyticsAndSentry(err);
-  if (!errorDefinition) {
-    return handleNonBitCustomErrors(err);
-  }
-  const func = getErrorFunc(errorDefinition);
-  const errorMessage = getErrorMessage(err, func) || 'unknown error';
-  err.message = errorMessage;
+  const errorMessage = getErrMsg();
   logger.error(`user gets the following error: ${errorMessage}`);
   logger.silly(err.stack);
-  return `${chalk.red(errorMessage)}${process.env.BIT_DEBUG ? err.stack : ''}`;
+  // eslint-disable-next-line no-console
+  if (process.env.BIT_DEBUG) console.error(err); // todo: remove once we have a good mechanism to handle it
+  return { message: chalk.red(errorMessage), error: err };
 };

@@ -4,6 +4,7 @@ import Helper from '../../src/e2e-helper/e2e-helper';
 import * as fixtures from '../../src/fixtures/fixtures';
 import WatchRunner from '../watch-runner';
 import { IS_WINDOWS } from '../../src/constants';
+import { HARMONY_FEATURE } from '../../src/api/consumer/lib/feature-toggle';
 
 chai.use(require('chai-fs'));
 
@@ -103,55 +104,40 @@ describe('bit watch command', function() {
       }
     });
   });
-  describe('watch using TS Project Reference', () => {
-    if (IS_WINDOWS) {
-      // @todo: fix!
-      // @ts-ignore
-      this.skip;
-    } else {
-      before(() => {
-        helper.command.resetFeatures();
-        helper.scopeHelper.setNewLocalAndRemoteScopes();
-        helper.fixtures.populateComponentsTS();
-        helper.fixtures.addExtensionTS();
-        helper.fs.outputFile('bar/foo.js');
-        helper.fixtures.createComponentBarFoo();
-        helper.fixtures.addComponentBarFoo();
+  describe('Harmony watch, using Compiler & Typescript extensions', () => {
+    before(() => {
+      helper.command.resetFeatures();
+      helper.command.setFeatures(HARMONY_FEATURE);
+      helper.scopeHelper.setNewLocalAndRemoteScopes();
+      helper.fixtures.populateComponentsTS();
+      helper.fixtures.createComponentBarFoo();
+      helper.fixtures.addComponentBarFooAsDir();
 
-        const bitjsonc = helper.bitJsonc.read();
-        bitjsonc.variants['*'] = {
-          extensions: {
-            [`${helper.scopes.remote}/extensions/typescript`]: {},
-            compile: {
-              compiler: `@bit/${helper.scopes.remote}.extensions.typescript`
-            }
-          }
-        };
-        bitjsonc.variants['bar/foo'] = {
-          extensions: {}
-        };
-        helper.bitJsonc.write(bitjsonc);
+      const environments = {
+        env: '@teambit/react',
+        config: {}
+      };
+      helper.extensions.addExtensionToVariant('*', '@teambit/envs', environments);
+    });
+    describe('run bit watch', () => {
+      let watchRunner: WatchRunner;
+      before(async () => {
+        watchRunner = new WatchRunner(helper);
+        await watchRunner.watch();
       });
-      describe('run bit watch', () => {
-        let watchRunner: WatchRunner;
+      after(() => {
+        watchRunner.killWatcher();
+      });
+      describe('changing a file', () => {
         before(async () => {
-          watchRunner = new WatchRunner(helper);
-          await watchRunner.watch();
+          helper.fs.outputFile('comp1/index.ts', 'console.log("hello")');
+          await watchRunner.waitForWatchToRebuildComponent();
         });
-        after(() => {
-          watchRunner.killWatcher();
-        });
-        describe('changing a file', () => {
-          before(() => {
-            helper.fs.outputFile('comp1/index.ts', 'console.log("hello")');
-          });
-          it('should show results from tsc -w', async () => {
-            const tscMsg = 'Starting compilation in watch mode...';
-            const dataFromWatcher = await watchRunner.waitForWatchToPrintMsg(tscMsg);
-            expect(dataFromWatcher).to.have.string(tscMsg);
-          });
+        it('should write the dists on node_modules correctly', () => {
+          const distContent = helper.fs.readFile('node_modules/@my-scope/comp1/dist/index.js');
+          expect(distContent).to.have.string('hello');
         });
       });
-    }
+    });
   });
 });

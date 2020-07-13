@@ -1,14 +1,27 @@
 import { ExtensionManifest } from '@teambit/harmony';
 import workspaceProvider from './workspace.provider';
-import { ScopeExt } from '@bit/bit.core.scope';
+import { ScopeExtension } from '@bit/bit.core.scope';
 import { ComponentFactoryExt } from '@bit/bit.core.component';
-import { IsolatorExt } from '@bit/bit.core.isolator';
-import { WorkspaceConfigExt } from '@bit/bit.core.workspace-config';
+import { IsolatorExtension } from '@bit/bit.core.isolator';
 import { LoggerExt } from '@bit/bit.core.logger';
-import { DependencyResolverExt } from '@bit/bit.core.dependency-resolver';
+import { DependencyResolverExtension } from '@bit/bit.core.dependency-resolver';
+import { VariantsExt } from '@bit/bit.core.variants';
+import { EXT_NAME } from './constants';
+import { GraphQLExtension } from '@bit/bit.core.graphql';
+import { CLIExtension } from '@bit/bit.core.cli';
 
 export default {
-  name: 'workspace',
-  dependencies: [WorkspaceConfigExt, ScopeExt, ComponentFactoryExt, IsolatorExt, DependencyResolverExt, LoggerExt],
-  provider: workspaceProvider
+  name: EXT_NAME,
+  dependencies: [
+    CLIExtension,
+    ScopeExtension,
+    ComponentFactoryExt,
+    IsolatorExtension,
+    DependencyResolverExtension,
+    VariantsExt,
+    LoggerExt,
+    GraphQLExtension
+  ],
+  provider: workspaceProvider,
+  defineRuntime: 'browser'
 } as ExtensionManifest;

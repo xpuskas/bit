@@ -1,5 +1,5 @@
 import { Workspace } from '@bit/bit.core.workspace';
-import { Scope } from '@bit/bit.core.scope';
+import { ScopeExtension } from '@bit/bit.core.scope';
 import { ComponentGraph } from './component-graph';
 import { ComponentFactory } from '@bit/bit.core.component';
 import { buildOneGraphForComponents } from 'bit-bin/scope/graph/components-graph';
@@ -7,7 +7,11 @@ import { buildOneGraphForComponents } from 'bit-bin/scope/graph/components-graph
 export class GraphBuilder {
   _graph?: ComponentGraph;
   _initialized = false;
-  constructor(private componentFactory: ComponentFactory, private workspace?: Workspace, private scope?: Scope) {}
+  constructor(
+    private componentFactory: ComponentFactory,
+    private workspace?: Workspace,
+    private scope?: ScopeExtension
+  ) {}
 
   async getGraph(): Promise<ComponentGraph | undefined> {
     if (this._graph || this._initialized) {

@@ -2,7 +2,7 @@
 import React from 'react';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Color } from 'ink';
-import { Command } from '@bit/bit.core.paper';
+import { Command } from '@bit/bit.core.cli';
 import Workspace from './workspace';
 
 export class ListCmd implements Command {

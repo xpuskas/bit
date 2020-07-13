@@ -1,7 +1,6 @@
 import v4 from 'uuid';
 import path from 'path';
 import filenamify from 'filenamify';
-import librarian from 'librarian';
 import { realpathSync } from 'fs';
 import { Capsule as CapsuleTemplate, Exec, Console, State } from '@teambit/capsule';
 import { NodeFS } from '@teambit/any-fs';
@@ -34,7 +33,14 @@ export default class Capsule extends CapsuleTemplate<Exec, NodeFS> {
     this._wrkDir = container.wrkDir;
   }
 
+  /**
+   * @deprecated please use `this.path`
+   */
   get wrkDir(): string {
+    return this.path;
+  }
+
+  get path(): string {
     return realpathSync(this._wrkDir);
   }
 
@@ -42,16 +48,14 @@ export default class Capsule extends CapsuleTemplate<Exec, NodeFS> {
     return this.container.start();
   }
 
-  async execNode(executable: string, args: any, exec: ContainerExec, packageMannager = 'npm') {
-    return packageMannager === 'librarian'
-      ? librarian.runModule(executable, { ...args, cwd: this.wrkDir })
-      : this.typedExec(
-          {
-            command: ['node', executable, ...(args.args || [])],
-            cwd: ''
-          },
-          exec
-        );
+  async execNode(executable: string, args: any, exec: ContainerExec) {
+    return this.typedExec(
+      {
+        command: ['node', executable, ...(args.args || [])],
+        cwd: ''
+      },
+      exec
+    );
   }
 
   async typedExec(opts: BitExecOption, exec = new ContainerExec()) {

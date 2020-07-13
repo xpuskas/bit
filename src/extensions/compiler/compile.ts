@@ -1,7 +1,7 @@
 import path from 'path';
 import pMapSeries from 'p-map-series';
 import { Workspace } from '../workspace';
-import { DEFAULT_DIST_DIRNAME } from './../../constants';
+import { DEFAULT_DIST_DIRNAME } from '../../constants';
 import ConsumerComponent from '../../consumer/component';
 import { BitId, BitIds } from '../../bit-id';
 import buildComponent from '../../consumer/component-ops/build-component';

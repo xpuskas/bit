@@ -1,95 +1,47 @@
 import ConsumerComponent from 'bit-bin/consumer/component';
 import { Capsule } from './capsule';
-import { getComponentLinks } from 'bit-bin/links/link-generator';
-import { getManipulateDirForComponentWithDependencies } from 'bit-bin/consumer/component-ops/manipulate-dir';
-
-import { ComponentWithDependencies } from 'bit-bin/scope';
-import ManyComponentsWriter, {
-  ManyComponentsWriterParams
-} from 'bit-bin/consumer/component-ops/many-components-writer';
-
 import CapsuleList from './capsule-list';
 import Graph from 'bit-bin/scope/graph/graph'; // TODO: use graph extension?
-import { BitId } from 'bit-bin/bit-id';
-import { Dependencies } from 'bit-bin/consumer/component/dependencies';
+import { BitIds } from 'bit-bin/bit-id';
+import { ComponentID } from '@bit/bit.core.component';
+import ComponentWriter, { ComponentWriterProps } from 'bit-bin/consumer/component-ops/component-writer';
+import BitMap from 'bit-bin/consumer/bit-map';
 
 export default async function writeComponentsToCapsules(
   components: ConsumerComponent[],
   graph: Graph,
   capsules: Capsule[],
-  capsuleList: CapsuleList,
-  packageManager: string
+  capsuleList: CapsuleList
 ) {
   components = components.map(c => c.clone());
-  const writeToPath = '.';
-  const componentsWithDependencies = components.map(component => {
-    const getClonedFromGraph = (id: BitId): ConsumerComponent => {
-      const consumerComponent = graph.node(id.toString());
-      if (!consumerComponent) {
-        throw new Error(
-          `unable to find the dependency "${id.toString()}" of "${component.id.toString()}" in the graph`
-        );
-      }
-      return consumerComponent.clone();
-    };
-    const getDeps = (dependencies: Dependencies) => dependencies.get().map(dep => getClonedFromGraph(dep.id));
-    const dependencies = getDeps(component.dependencies);
-    const devDependencies = getDeps(component.devDependencies);
-    const extensionDependencies = component.extensions.extensionsBitIds.map(getClonedFromGraph);
-    return new ComponentWithDependencies({
-      component,
-      dependencies,
-      devDependencies,
-      extensionDependencies
-    });
-  });
-  const concreteOpts: ManyComponentsWriterParams = {
-    componentsWithDependencies,
-    writeToPath,
+  const allIds = BitIds.fromArray(components.map(c => c.id));
+  await Promise.all(
+    components.map(async component => {
+      const capsule = capsuleList.getCapsule(new ComponentID(component.id));
+      if (!capsule) return;
+      const params = getComponentWriteParams(component, allIds);
+      const componentWriter = new ComponentWriter(params);
+      await componentWriter.populateComponentsFilesToWrite();
+      await component.dataToPersist.persistAllToCapsule(capsule, { keepExistingCapsule: true });
+    })
+  );
+  // return manyComponentsWriter.writtenComponents;
+}
+
+function getComponentWriteParams(component: ConsumerComponent, ids: BitIds): ComponentWriterProps {
+  return {
+    component,
+    // @ts-ignore
+    bitMap: new BitMap(),
+    writeToPath: '.',
+    origin: 'IMPORTED',
+    consumer: undefined,
     override: false,
     writePackageJson: true,
     writeConfig: false,
-    writeBitDependencies: false,
-    createNpmLinkFiles: false,
-    saveDependenciesAsComponents: false,
-    writeDists: false,
-    installNpmPackages: false,
-    installPeerDependencies: false,
-    addToRootPackageJson: false,
-    verbose: false,
+    ignoreBitDependencies: ids,
     excludeRegistryPrefix: false,
-    silentPackageManagerResult: false,
     isolated: true,
-    packageManager,
     applyExtensionsAddedConfig: true
   };
-  componentsWithDependencies.map(cmp => normalizeComponentDir(cmp));
-  const manyComponentsWriter = new ManyComponentsWriter(concreteOpts);
-  await manyComponentsWriter._populateComponentsFilesToWrite();
-  componentsWithDependencies.forEach(componentWithDependencies => {
-    const links = getComponentLinks({
-      component: componentWithDependencies.component,
-      dependencies: componentWithDependencies.allDependencies,
-      createNpmLinkFiles: false,
-      bitMap: manyComponentsWriter.bitMap
-    });
-    componentWithDependencies.component.dataToPersist.addManyFiles(links.files);
-  });
-  // write data to capsule
-  await Promise.all(
-    manyComponentsWriter.writtenComponents.map(async componentToWrite => {
-      const capsule = capsuleList.getCapsule(componentToWrite.id);
-      if (!capsule) return;
-      await componentToWrite.dataToPersist.persistAllToCapsule(capsule, { keepExistingCapsule: true });
-    })
-  );
-  return manyComponentsWriter.writtenComponents;
-}
-
-function normalizeComponentDir(componentWithDependencies: ComponentWithDependencies) {
-  const allComponents = [componentWithDependencies.component, ...componentWithDependencies.allDependencies];
-  const manipulateDirData = getManipulateDirForComponentWithDependencies(componentWithDependencies);
-  allComponents.forEach(component => {
-    component.stripOriginallySharedDir(manipulateDirData);
-  });
 }

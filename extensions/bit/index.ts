@@ -1,3 +1,2 @@
-// eslint-disable-next-line import/prefer-default-export
-export { default as Bit } from './bit';
-export { default as BitExt } from './bit.manifest';
+export { manifestsMap } from './manifests';
+export { default as BitExt, registerCoreExtensions } from './bit.manifest';

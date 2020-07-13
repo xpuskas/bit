@@ -1,11 +1,11 @@
 import { GraphBuilder } from '@bit/bit.core.graph';
 import getCoreInsights from './core-insights-getter';
-import { BitCli } from '@bit/bit.core.cli';
 import { InsightManager } from './insight-manager';
 import { Insight } from './insight';
 import InsightsCmd from './insights.cmd';
+import { CLIExtension } from '@bit/bit.core.cli';
 
-export type InsightDeps = [GraphBuilder, BitCli];
+export type InsightDeps = [GraphBuilder, CLIExtension];
 
 export async function provide([graphBuilder, cli]: InsightDeps) {
   // get all insights from registry

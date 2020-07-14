@@ -131,6 +131,13 @@
       "@teambit/envs": {
         "env": "@teambit/react",
         "config": {}
+      },
+      "@teambit/dependency-resolver": {
+        "policy": {
+          "devDependencies": {
+            "@types/mocha": "^7.0.2"
+          }
+        }
       }
     }
   }

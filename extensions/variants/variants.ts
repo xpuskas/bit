@@ -3,7 +3,7 @@ import ConsumerOverrides from 'bit-bin/consumer/config/consumer-overrides';
 import { BitId } from 'bit-bin/bit-id';
 import { Config } from '@bit/bit.core.config';
 import { ExtensionDataList } from 'bit-bin/consumer/config/extension-data';
-import { WorkspaceComponentConfig } from '@bit/bit.core.workspace'; // todo: change to "import type" once babel supports it
+import { WorkspaceComponentConfig } from '@bit/bit.core.workspace/types'; // todo: change to "import type" once babel supports it
 
 export type Patterns = { [pattern: string]: Record<string, any> };
 

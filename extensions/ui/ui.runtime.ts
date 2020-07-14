@@ -1,6 +1,6 @@
 import harmony from '@teambit/harmony';
 import { UIRuntimeExtension } from './ui.ui';
-import { DocsUI } from '@bit/bit.core.docs';
+import { DocsUI } from '@bit/bit.core.docs/docs.ui';
 
 /**
  * configure all core extensions

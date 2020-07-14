@@ -1,4 +1,4 @@
-import { ConcreteService } from '@bit/bit.core.environments';
+import { ConcreteService } from '@bit/bit.core.environments/services/concrete-service';
 import { BuildResults, BuildContext } from '@bit/bit.core.builder';
 
 export interface Compiler extends ConcreteService {

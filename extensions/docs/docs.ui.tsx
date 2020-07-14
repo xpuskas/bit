@@ -1,4 +1,4 @@
-import { WorkspaceUI } from '@bit/bit.core.workspace';
+import { WorkspaceUI } from '@bit/bit.core.workspace/workspace.ui';
 
 export class DocsUI {
   static dependencies = [WorkspaceUI];

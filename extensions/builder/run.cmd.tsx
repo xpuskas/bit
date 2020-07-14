@@ -2,7 +2,7 @@ import { Command, CommandOptions } from '@bit/bit.core.cli';
 import { Workspace } from '@bit/bit.core.workspace';
 import { BuilderExtension } from './builder.extension';
 import { Reporter } from '@bit/bit.core.reporter';
-import { onCapsuleInstalled, beforeInstallingCapsules } from '@bit/bit.core.dependency-resolver';
+import { onCapsuleInstalled, beforeInstallingCapsules } from '@bit/bit.core.dependency-resolver/package-manager';
 
 export class BuilderCmd implements Command {
   name = 'run-new [pattern]';

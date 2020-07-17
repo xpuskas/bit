@@ -1,3 +1,4 @@
+import { performance } from 'perf_hooks';
 import { LegacyCommand } from '../../legacy-command';
 import { fromBase64, buildCommandMessage, packCommand, unpackCommand } from '../../../utils';
 import { put } from '../../../api/scope';
@@ -16,16 +17,30 @@ export default class Put implements LegacyCommand {
   opts = [];
 
   action([path, args]: [string, string]): Promise<any> {
+    const t0 = performance.now();
     let data = '';
     const { headers } = unpackCommand(args);
     compressResponse = clientSupportCompressedCommand(headers.version);
     checkVersionCompatibilityOnTheServer(headers.version);
     return new Promise((resolve, reject) => {
       process.stdin
-        .on('data', (chunk) => {
-          data += chunk.toString();
+        .on('readable', () => {
+          let chunk;
+          // eslint-disable-next-line no-cond-assign
+          while ((chunk = process.stdin.read(1024 * 4)) !== null) {
+            const size = chunk.length;
+            logger.debug(`DATA ${size}B. ${Math.floor(size / 1024)}KB`);
+            data += chunk.toString();
+          }
         })
         .on('end', () => {
+          const size = data.length;
+          logger.debug(`END ${size}B. ${Math.floor(size / 1024)}KB ${Math.floor(size / 1024 / 1024)}MB`);
+          const t1 = performance.now();
+          const timeInSeconds = (t1 - t0) / 1000;
+          logger.debug(`_put, getting all data from the client took ${timeInSeconds} seconds.`);
+          logger.debug(`_put, transfer rate is ${Math.floor(size / 1024 / 1024 / timeInSeconds)} MB / Sec`);
+
           logger.info('Checking if a migration is needed');
           const scopePath = fromBase64(path);
           return migrate(scopePath, false)
@@ -35,6 +50,30 @@ export default class Put implements LegacyCommand {
             .then(resolve)
             .catch(reject);
         });
+
+      // process.stdin
+      //   .on('data', (chunk) => {
+      //     data += chunk.toString();
+      //     const size = chunk.byteLength;
+      //     logger.debug(`DATA ${size}B. ${Math.floor(size / 1024)}KB`);
+      //   })
+      //   .on('end', () => {
+      //     const size = data.length
+      //     logger.debug(`END ${size}B. ${Math.floor(size / 1024)}KB ${Math.floor(size / 1024 /1024)}MB`);
+      //     const t1 = performance.now();
+      //     const timeInSeconds = (t1 - t0) / 1000;
+      //     logger.debug(`_put, getting all data from the client took ${timeInSeconds} seconds.`);
+      //     logger.debug(`_put, transfer rate is ${Math.floor(size / 1024 / 1024 / timeInSeconds)} MB / Sec`);
+
+      //     logger.info('Checking if a migration is needed');
+      //     const scopePath = fromBase64(path);
+      //     return migrate(scopePath, false)
+      //       .then(() => {
+      //         return put({ compsAndLanesObjects: data, path: fromBase64(path) }, headers);
+      //       })
+      //       .then(resolve)
+      //       .catch(reject);
+      //   });
     });
   }
 

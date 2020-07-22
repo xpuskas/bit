@@ -240,6 +240,7 @@
     "prettier-eslint-cli": "^5.0.0",
     "prompt": "^1.0.0",
     "proper-lockfile": "^4.1.1",
+    "puppeteer": "^5.2.0",
     "ramda": "^0.24.1",
     "ramda-adjunct": "^2.25.0",
     "react": "^16.13.1",

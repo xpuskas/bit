@@ -13,6 +13,7 @@ import { InsightsExt } from '../insights';
 import { IsolatorExtension } from '../isolator';
 import { LoggerExt } from '../logger';
 import { PkgExtension } from '../pkg';
+import { ScreenshotExtension } from '../screenshot';
 import { ReactExtension } from '../react';
 import { ReporterExt } from '../reporter';
 import { ScopeExtension } from '../scope';
@@ -61,4 +62,5 @@ export const manifestsMap = {
   [BuilderExtension.id]: BuilderExtension,
   [VariantsExt.name]: VariantsExt,
   [WorkspaceExt.name]: WorkspaceExt,
+  [ScreenshotExtension.id]: ScreenshotExtension,
 };

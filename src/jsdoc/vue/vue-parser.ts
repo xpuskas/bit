@@ -56,9 +56,11 @@ function formatMethods(methods) {
   return methods.map(formatMethod);
 }
 
-function fromVueDocs({ name, description, props, methods, computed }, filePath): Doclet {
+function fromVueDocs(vueDocs, filePath): Doclet {
+  const { name, description, props, methods, computed } = vueDocs;
   return {
     filePath: pathNormalizeToLinux(filePath),
+    vueDocs,
     name,
     description,
     properties: formatProperties(props, computed),

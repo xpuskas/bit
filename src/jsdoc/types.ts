@@ -34,4 +34,5 @@ export type Doclet = {
   methods?: Method[];
   properties?: DocProp[];
   static?: boolean;
+  vueDocs?: any;
 };

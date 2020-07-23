@@ -1,6 +1,7 @@
 {
-  "name": "bit-bin",
-  "version": "14.8.8",
+  "name": "@uxtweak/bit-bin",
+  "description" : "Forked Bit package with ability to generate Vue documentation from TS components.",
+  "version": "14.8.8.1",
   "license": "Apache-2.0",
   "main": "./dist/api.js",
   "preferGlobal": true,

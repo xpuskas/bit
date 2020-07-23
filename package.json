@@ -5,6 +5,7 @@
   "main": "./dist/api.js",
   "preferGlobal": true,
   "scripts": {
+    "install": "npm run build",
     "dev-link": "node ./scripts/establish-dev-link.js $1",
     "precommit": "lint-staged",
     "ts-coverage": "type-coverage",

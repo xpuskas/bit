@@ -1,5 +1,6 @@
 import * as domain from 'domain';
 import vuedoc from '@vuedoc/parser';
+import TypeScriptLoader from '@vuedoc/parser/loader/typescript';
 import { PathOsBased } from '../../utils/path';
 import { Doclet } from '../types';
 import { pathNormalizeToLinux } from '../../utils';
@@ -69,6 +70,7 @@ function fromVueDocs({ name, description, props, methods, computed }, filePath):
 export default async function parse(data: string, filePath?: PathOsBased): Promise<Doclet[]> {
   const options = {
     filecontent: data,
+    loaders: [vuedoc.Loader.extend('ts', TypeScriptLoader)],
   };
 
   return new Promise((resolve) => {
